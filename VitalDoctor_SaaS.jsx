@@ -123,7 +123,7 @@ html,body,#root{height:100%;background:#07090f;color:#dde4f0;font-family:'DM San
 .trial-bar{background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(0,198,184,.05));border:1px solid rgba(245,158,11,.16);border-radius:8px;padding:9px 13px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .loading{display:flex;align-items:center;justify-content:center;height:60px;color:#2d4a66;font-size:12px}
 `;
-echo "CSS OK"
+
 // ══════════════════════════════════════════════════════
 // AUTH
 // ══════════════════════════════════════════════════════
@@ -191,7 +191,7 @@ function Auth({ onLogin }) {
     </div>
   );
 }
-echo "Auth OK"
+
 // ══════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════
@@ -243,7 +243,7 @@ function Dashboard({ user, pacs, agenda }) {
     </div>
   );
 }
-echo "Dashboard OK"
+
 // ══════════════════════════════════════════════════════
 // PACIENTES
 // ══════════════════════════════════════════════════════
@@ -452,7 +452,7 @@ function Pacientes({ user, pacs, setPacs }) {
     </div>
   );
 }
-echo "Pacientes OK"
+
 // ══════════════════════════════════════════════════════
 // AGENDA
 // ══════════════════════════════════════════════════════
@@ -599,7 +599,7 @@ function Agenda({ user, pacs, agenda, setAgenda }) {
     </div>
   );
 }
-echo "Agenda OK"
+
 // ══════════════════════════════════════════════════════
 // ADMIN PANEL
 // ══════════════════════════════════════════════════════
@@ -731,7 +731,7 @@ function AdminPanel({ user }) {
     </div>
   );
 }
-echo "Admin OK"
+
 // ══════════════════════════════════════════════════════
 // APP PRINCIPAL
 // ══════════════════════════════════════════════════════
@@ -763,7 +763,6 @@ export default function VitalDoctor() {
       const { data } = await sb.from("profiles").select("*").eq("id", u.id).single();
       prof = data;
     }
-    // Se for o admin principal, garantir superadmin
     if (u.email === "ricardocorreia.211984@gmail.com" && prof?.role !== "superadmin") {
       await sb.from("profiles").update({ role: "superadmin" }).eq("id", u.id);
       prof = { ...prof, role: "superadmin" };
@@ -898,7 +897,7 @@ export default function VitalDoctor() {
   );
 }
 
-// ── MÓDULOS CLÍNICOS (versões simplificadas funcionais) ──
+// ── MÓDULOS CLÍNICOS ──
 
 function Mapeamento({ user }) {
   return <div className="al al-i">Modulo Mapeamento — em construcao nesta versao SaaS. Disponivel na proxima atualizacao.</div>;
