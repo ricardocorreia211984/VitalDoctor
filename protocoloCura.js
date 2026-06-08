@@ -149,6 +149,15 @@ export const AVISO_ETICO =
   "Esta leitura revela hipóteses emocionais e padrões corporais. " +
   "Não substitui avaliação médica nem fecha diagnóstico clínico.";
 
+// O que o paciente pode sentir durante o processo de cura (normalizar)
+export const REACOES_CURA = [
+  "Pode surgir mais cansaço ou vontade de dormir — é o corpo a reorganizar-se.",
+  "Emoções podem vir à tona (vontade de chorar, alívio, irritabilidade) — faz parte da libertação.",
+  "Pode haver sonhos mais intensos ou memórias antigas — sinal de processamento.",
+  "Beber água, descansar e respirar fundo ajuda em cada fase.",
+  "Estas reações costumam ser passageiras. Se algo preocupar ou agravar, procurar acompanhamento médico/profissional.",
+];
+
 // -------------------------------------------------------------
 //  Normalizar pontos: aceita
 //    "figado"                               (id do ponto)
@@ -334,6 +343,9 @@ export function gerarProtocoloCura(respostas = {}, escudoDominante = null) {
     L.push(`\n## Modulações adicionais (conforme necessidade)`);
     modulacoesMedos.forEach((m) => L.push(`• ${m.titulo || "Modulação dos medos"}`));
   }
+
+  L.push(`\n## O que podes sentir durante a cura`);
+  REACOES_CURA.forEach((r) => L.push(`• ${r}`));
 
   L.push(`\n## Frequência`);
   L.push(FREQUENCIA[dias] || FREQUENCIA[7]);

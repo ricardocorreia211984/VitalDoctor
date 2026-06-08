@@ -89,11 +89,14 @@ export const MAPEAMENTO_PASSOS = [
   { n: 7, titulo: "Consciência", texto: "Trazer ao paciente o que o corpo revelou e iniciar a cura." },
 ];
 
-// Perguntas de monitorização (todas as consultas)
+// Perguntas de monitorização / evolução (2.ª consulta em diante)
 export const MONITORIZACAO = [
-  "Como se tem sentido desde o nosso último encontro?",
-  "Quantas crises teve esta semana?",
-  "O que mudou nos sintomas?",
+  "Desde a última consulta, há algo relevante a registar?",
+  "Mudou a medicação? Aumentou, diminuiu ou começou alguma nova?",
+  "Como esteve o sono?",
+  "Como esteve a energia e a disposição?",
+  "Quantas crises teve nesta semana?",
+  "O que melhorou nos sintomas? O que permanece igual?",
 ];
 
 // Helpers
