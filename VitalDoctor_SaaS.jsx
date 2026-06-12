@@ -69,6 +69,108 @@ const tog = (arr, val) => arr.includes(val) ? arr.filter(x => x !== val) : [...a
 const HORAS = Array.from({length:24},(_,i)=>`${String(i).padStart(2,"0")}:00`);
 const diasSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
+// ══════════════════════════════════════════════════════
+// TIPOS DE CONSULTA E PASSOS — DEFINIÇÃO INTERNA COMPLETA
+// Independente de qualquer ficheiro externo
+// ══════════════════════════════════════════════════════
+const PERGUNTAS_PODER = [
+  "Quem és tu hoje?",
+  "Já passaste por isso antes?",
+  "Quais foram os 3 piores momentos da tua vida?",
+  "Quantas crises por semana tens?",
+  "Quais os sintomas principais?",
+  "O que gostarias que fosse o foco da consulta hoje?",
+];
+
+const PERGUNTAS_MONITORIZACAO = [
+  "Como te has sentido desde o nosso último encontro?",
+  "Quantas crises tiveste esta semana?",
+  "O que mudou nos sintomas desde a última sessão?",
+];
+
+const PERGUNTAS_ESTRESSORES = [
+  "Quem do teu convívio actual mais te estressa ou altera o teu humor?",
+  "O que essa pessoa faz ou diz que mais te desestabiliza?",
+  "Que situações te tiram do foco?",
+  "Já existiu alguém no passado com esse mesmo papel?",
+  "O que essas pessoas tinham em comum?",
+];
+
+const PASSOS_BASE = {
+  acolhimento: { id:"acolhimento", titulo:"Início e Acolhimento", descricao:"Observa como o paciente chega. Escuta além das palavras: corpo, respiração, energia. Se houver tensão, conduz uma respiração guiada antes de começar." },
+  dados: { id:"dados", titulo:"Recolha de Dados Pessoais", descricao:"Anota com calma: nome, idade, data de nascimento, profissão, quadro clínico, medicação." },
+  perguntas: { id:"perguntas", titulo:"6 Perguntas do Poder", descricao:"Faz com presença e escuta activa. Estas perguntas abrem o campo para que o paciente se conecte com a sua própria história." },
+  caminho: { id:"caminho", titulo:"Escolha do Caminho Terapêutico", descricao:"Com base na escuta, decide entre: Caminho 1 (Escudos), Caminho 2 (Mapeamento), Caminho 3 (Estressores)." },
+  escudos: { id:"escudos", titulo:"Pontuação dos Escudos Emocionais", descricao:"Apresenta os 5 escudos. Pede que pontue de 0 a 10 qual sente mais presente hoje. Isto expande a consciência sobre o próprio processo." },
+  mapeamento: { id:"mapeamento", titulo:"Mapeamento Energético", descricao:"Mapeamento corporal completo nos 4 quadrantes. Acede à raiz profunda do sintoma através do corpo." },
+  estressores: { id:"estressores", titulo:"Mapeamento de Estressores", descricao:"Reconhecer padrões e ciclos emocionais activos. Ideal para sessões de manutenção." },
+  monitorizacao: { id:"monitorizacao", titulo:"Monitorização de Sintomas", descricao:"Em todas as consultas: como se sentiu desde o último encontro, quantas crises, o que mudou." },
+  devolutiva: { id:"devolutiva", titulo:"Devolutiva Terapêutica", descricao:"Entrega ao paciente o que o corpo revelou, com presença e sensibilidade. Gera o relatório completo." },
+  protocolo: { id:"protocolo", titulo:"Protocolo de Cura — Trabalho em Casa", descricao:"Define o protocolo personalizado: áudio, alimentação, respiração, práticas diárias. Este é o trabalho de cura que o paciente faz entre sessões." },
+  revisao: { id:"revisao", titulo:"Revisão da Sessão Anterior", descricao:"O que melhorou? O que permanece? O que surgiu de novo?" },
+  ferramentas: { id:"ferramentas", titulo:"Ferramentas Práticas para a Vida", descricao:"Checklists personalizados, plano de autocuidado diário, sugestões para desafios emocionais." },
+  encerramento: { id:"encerramento", titulo:"Encerramento e Miminho Terapêutico", descricao:"7 meditações de limpeza emocional (uma por dia). Cria um campo de encerramento e integração." },
+};
+
+const TIPOS_CONSULTA_LOCAL = [
+  {
+    id: "consulta_unica",
+    nome: "Consulta Única",
+    indicado: "Quando há só um encontro. Prioriza clareza, resultado e acolhimento real.",
+    nota: "Paciente ansioso → caminhos rápidos e práticos. Paciente em baixa → acolhimento e micro metas.",
+    passos: ["acolhimento","perguntas","caminho","monitorizacao","devolutiva","protocolo"],
+  },
+  {
+    id: "pack_c1",
+    nome: "Pack 3 Sessões — Sessão 1",
+    indicado: "Mente Consciente + Modulação + Protocolo 7 dias.",
+    nota: "Objectivo: criar base emocional, clareza e pequenos hábitos transformadores.",
+    passos: ["acolhimento","perguntas","escudos","protocolo"],
+  },
+  {
+    id: "pack_c2",
+    nome: "Pack 3 Sessões — Sessão 2",
+    indicado: "Mente Subconsciente + Mapeamento Energético completo.",
+    nota: "Revisão da sessão anterior + mapeamento + devolutiva + protocolo 7-15 dias.",
+    passos: ["revisao","mapeamento","devolutiva","protocolo"],
+  },
+  {
+    id: "pack_c3",
+    nome: "Pack 3 Sessões — Sessão 3",
+    indicado: "Direcionamento, Consolidação e Ferramentas de Vida.",
+    nota: "Checklists, plano de autocuidado, miminho terapêutico de encerramento.",
+    passos: ["revisao","ferramentas","protocolo","encerramento"],
+  },
+  {
+    id: "mapeamento_unico",
+    nome: "Mapeamento Energético",
+    indicado: "Aceder à raiz profunda do sintoma pelo corpo. Pode ser frente, costas ou ambos.",
+    nota: "Ideal para 2ª consulta ou pacientes que já conhecem a técnica.",
+    passos: ["acolhimento","mapeamento","devolutiva","protocolo"],
+  },
+  {
+    id: "manutencao",
+    nome: "Sessão de Manutenção",
+    indicado: "Pacientes em tratamento contínuo. Sintomas que se repetem sem causa clara.",
+    nota: "Caminho 3 — estressores activos e ajustes na rotina emocional.",
+    passos: ["monitorizacao","estressores","protocolo"],
+  },
+];
+
+// Buscar tipo local pelo id
+const getTipoLocal = (id) => TIPOS_CONSULTA_LOCAL.find(t => t.id === id) || null;
+
+// Obter passos do tipo (usa definição local, independente de atendimento.js)
+const getPassosLocal = (tipoId) => {
+  const tipo = getTipoLocal(tipoId);
+  if (!tipo) return [];
+  return tipo.passos.map(pid => PASSOS_BASE[pid]).filter(Boolean);
+};
+
+// MONITORIZACAO local (não depende de atendimento.js)
+const MONITORIZACAO_LOCAL = PERGUNTAS_MONITORIZACAO;
+
+
 // ─── CSS ───
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -1493,7 +1595,7 @@ function Mapeamento({ user, initConsulta }) {
       const { data } = await sb.from("pacientes").insert({ nome: dados.nome.trim(), data_nasc: dados.dataNasc || null, medicacao: dados.medicacao || null, genero: sexo, terapeuta_id: user?.id }).select().single();
       if (data) { id = data.id; setDados(d => ({ ...d, paciente_id: id })); setPacs(ps => [...ps, data]); }
     }
-    const ps = passosDoTipo(tipoSel, subSel);
+    const ps = getPassosLocal(tipoSel);
     setEtapa(ps.some(p => p.id === "mapeamento") ? "mapa" : "passos");
   };
 
@@ -1576,11 +1678,11 @@ function Mapeamento({ user, initConsulta }) {
   };
   const guardar = async () => { if(!res) return; try { await sb.from("consultas").insert({ paciente_id:dados.paciente_id||null, paciente_nome:dados.nome, data_avaliacao:dados.dataAval, data_nascimento:dados.dataNasc||null, medicacao:dados.medicacao||null, tipo:"mapeamento", escudo_ativo:escudo, pontos:sel, centros_vitais:vitais, pontos_entrada:entrada, lateralidade:lateral, protocolo:res.texto, terapeuta_id:user?.id }); alert("Guardado na ficha! ✅"); } catch { alert("Erro ao guardar. Verifica a tabela 'consultas' no Supabase."); } };
 
-  const tipoObj = tipoSel ? TIPOS_ATENDIMENTO.find(x => x.id === tipoSel) : null;
-  const subObj = tipoObj?.subconsultas ? tipoObj.subconsultas.find(s => s.id === subSel) : null;
-  const passosAtuais = tipoSel ? passosDoTipo(tipoSel, subSel) : [];
+  const tipoObj = tipoSel ? (getTipoLocal(tipoSel) || null) : null;
+  const subObj = null;
+  const passosAtuais = tipoSel ? getPassosLocal(tipoSel) : [];
   const temMapeamento = passosAtuais.some(p => p.id === "mapeamento");
-  const podeAvancar = !!tipoObj && (!tipoObj.subconsultas || !!subSel);
+  const podeAvancar = !!tipoObj;
 
   const guardarGuia = async () => {
     if (!dados.nome.trim()) { alert("Falta o nome do paciente."); return; }
@@ -1608,7 +1710,7 @@ function Mapeamento({ user, initConsulta }) {
       <div className="card">
         <div className="card-t">Tipo de atendimento</div>
         <div className="al al-i" style={{fontSize:10}}>Escolhe o tipo de consulta. A app mostra o passo a passo para te guiar. Nem todos os tipos usam o mapeamento do corpo.</div>
-        {TIPOS_ATENDIMENTO.map(x => (
+        {TIPOS_CONSULTA_LOCAL.map(x => (
           <div key={x.id} className="admin-section" style={{cursor:"pointer",borderColor: tipoSel===x.id ? "#00c6b8" : undefined, marginTop:6}} onClick={()=>{setTipoSel(x.id);setSubSel(null);setStepIdx(0);setNotas({});setCaminhoSel(null);setEscudoScores({});setDevolutivaText("");}}>
             <div style={{fontWeight:700,fontSize:12,color:"#b0c4d8"}}>{x.nome}</div>
             <div style={{fontSize:10,color:"#5a7a9a",marginTop:2}}>{x.indicado}</div>
@@ -1652,7 +1754,7 @@ function Mapeamento({ user, initConsulta }) {
       const cam = CAMINHOS.find(c=>c.id===caminhoSel);
       const pNome = dados.nome || "paciente";
       const resps = PERGUNTAS_ABERTURA.map((q,qi)=>notas["q"+qi]?`• ${q}\n  → ${notas["q"+qi]}`:null).filter(Boolean).join("\n");
-      const monit = MONITORIZACAO.map((q,qi)=>notas["m"+qi]?`• ${q}\n  → ${notas["m"+qi]}`:null).filter(Boolean).join("\n");
+      const monit = MONITORIZACAO_LOCAL.map((q,qi)=>notas["m"+qi]?`• ${q}\n  → ${notas["m"+qi]}`:null).filter(Boolean).join("\n");
       return `DEVOLUTIVA — ${tipoObj?.nome||""}${subObj?` · ${subObj.nome}`:""}\nPaciente: ${pNome} | Data: ${dados.dataAval||""}\n\n` +
         `ESCUDO DOMINANTE: ${e.nome}\n"${e.sentenca}"\n\nFOCO: ${e.foco}\n\nORIGEM:\n${e.origem}\n\nIMPACTO NO CORPO: ${e.corpo}\n\nORIENTAÇÃO:\n${e.devolutiva}\n\n` +
         (cam?`CAMINHO: ${cam.nome}\n${cam.passos.map(p=>`• ${p}`).join("\n")}\n\n`:"") +
@@ -1804,7 +1906,7 @@ function Mapeamento({ user, initConsulta }) {
             )}
           </>}
 
-          {passo.id==="monitorizacao" && MONITORIZACAO.map((q,qi)=>(
+          {passo.id==="monitorizacao" && MONITORIZACAO_LOCAL.map((q,qi)=>(
             <div key={qi} style={{marginBottom:10}}>
               <div style={{fontSize:11,color:"#00c6b8",fontWeight:600,marginBottom:4}}>{q}</div>
               <textarea className="inp" rows={2} style={{resize:"vertical"}} value={notas["m"+qi]||""} onChange={e=>setNotas(n=>({...n,["m"+qi]:e.target.value}))} placeholder="Resposta..." />
@@ -2058,7 +2160,7 @@ function NovaConsulta({ user, onIniciar }) {
       {/* Tipos */}
       <div className="card">
         <div className="card-t">Toca para iniciar a consulta</div>
-        {TIPOS_ATENDIMENTO.map(x => (
+        {TIPOS_CONSULTA_LOCAL.map(x => (
           <div key={x.id}>
             <div
               onClick={() => handleClickTipo(x)}
