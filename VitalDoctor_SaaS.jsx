@@ -2220,9 +2220,10 @@ function gerarRelatorioFiel(tipo, dados, pacienteNome) {
   }
 
   if (tipo === "Mapeamento Energético Vital") {
-    linhas.push(`\nCONSULTA DE MAPEAMENTO`);
-    const { cab, passagens, escudo, escudoLado, quando, notas } = dados;
-    if (cab?.dataAval)  linhas.push(`Data da Avaliação: ${cab.dataAval}`);
+    const { ficha, modo, face, cab, passagens, escudo, escudoLado, quando, notas } = dados;
+    linhas.push(`\nCONSULTA DE MAPEAMENTO${ficha ? " — " + ficha : ""}`);
+    if (cab?.consultaNum) linhas.push(`Consulta Nº: ${cab.consultaNum}`);
+    if (cab?.dataAval)  linhas.push(`Data da Consulta: ${cab.dataAval}`);
     if (cab?.dataNasc)  linhas.push(`Data de Nascimento: ${cab.dataNasc}`);
     if (cab?.medicacao) linhas.push(`Medicação: ${cab.medicacao}`);
 
@@ -2507,7 +2508,6 @@ function FormPrimeiroAtendimento({ paciente, user, onGuardar, onVoltar }) {
 // Segue exactamente os 8 passos do protocolo de mapeamento
 // ══════════════════════════════════════════════════════════════════
 function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
-  const LADOS = ["FRENTE.Drt.", "FRENTE.Esq.", "COSTAS.Drt.", "COSTAS.Esq."];
   const PONTOS_VITAIS = ["COROA (topo da cabeça)","GARGANTA","CORAÇÃO","PLEXO (boca/estômago)","PLEXO SOLAR","ESPLÉNICO","RAIZ"];
   const PONTOS_ENTRADA = ["COROA","OMBRO","COSTELAS","MÃO","COXA","JOELHO","PÉ"];
   const SIST_SUP = ["EPÍFISE","HIPOTÁLAMO","HIPÓFISE","AMÍGDALAS","PARATIROIDE","TIMO","GLÂNDULAS SALIVARES E LACRIMAIS","TIREOIDE","ESÓFAGO"];
@@ -2515,14 +2515,24 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
   const SIST_INF = ["GLÂNDULAS MAMÁRIAS","ÚTERO, PRÓSTATA","SUPRARRENAIS","TESTÍCULOS, OVÁRIOS","RINS","BEXIGA"];
   const ESCUDOS_L = ["DESPROTEÇÃO","DESVALORIZAÇÃO","SOBREVIVÊNCIA","PERDA","IMPOTÊNCIA"];
 
-  const [etapa, setEtapa] = useState("cab"); // cab → lado → mapear → final
+  // Tipos de ficha (baseados nas fichas em papel)
+  const TIPOS_FICHA = [
+    { id: "aval_frente", nome: "Avaliação — Frente", face: "FRENTE", modo: "Avaliação" },
+    { id: "aval_costas", nome: "Avaliação — Costas", face: "COSTAS", modo: "Avaliação" },
+    { id: "trat_frente", nome: "Tratamento — Frente", face: "FRENTE", modo: "Tratamento" },
+    { id: "trat_costas", nome: "Tratamento — Costas", face: "COSTAS", modo: "Tratamento" },
+  ];
+
+  const [etapa, setEtapa] = useState("ficha"); // ficha → cab → lado → mapear → final
+  const [ficha, setFicha] = useState(null);     // tipo de ficha escolhido
   const [cab, setCab] = useState({
     dataAval: new Date().toISOString().split("T")[0],
     dataNasc: paciente?.data_nasc || "",
     medicacao: paciente?.medicacao || "",
+    consultaNum: "",
   });
-  const [passagens, setPassagens] = useState([]); // lados já mapeados
-  const [atual, setAtual] = useState(null);       // lado em curso
+  const [passagens, setPassagens] = useState([]); // cada lado mapeado
+  const [atual, setAtual] = useState(null);
   const [escudo, setEscudo] = useState("");
   const [quando, setQuando] = useState({ trans:false, gestacao:false, apos:false, texto:"" });
   const [notas, setNotas] = useState("");
@@ -2530,8 +2540,10 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
   const [load, setLoad] = useState(false);
   const [relatorio, setRelatorio] = useState("");
 
+  // Lados disponíveis dependem da face escolhida na ficha
+  const ladosBase = ficha ? [`${ficha.face} · DIREITA`, `${ficha.face} · ESQUERDA`] : [];
   const ladosFeitos = passagens.map(p => p.lado);
-  const ladosDisponiveis = LADOS.filter(l => !ladosFeitos.includes(l));
+  const ladosDisponiveis = ladosBase.filter(l => !ladosFeitos.includes(l));
 
   const iniciarLado = (lado) => {
     setAtual({ lado, pv: [], pe: [], zona: "", ss: [], sc: [], si: [] });
@@ -2544,10 +2556,10 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
   const mapearOutroLado = () => { setPassagens(p => [...p, atual]); setAtual(null); setEtapa("lado"); };
 
   const handleGuardar = async () => {
-    if (!escudo) { alert("Selecciona o ESCUDO MAIS ATIVO — é obrigatório no protocolo."); return; }
-    if (!quando.texto.trim()) { alert("Preenche o campo QUANDO / IDADE — é obrigatório no protocolo."); return; }
+    if (!escudo) { alert("Selecciona o ESCUDO MAIS ATIVO — é obrigatório."); return; }
+    if (!quando.texto.trim() && !quando.trans && !quando.gestacao && !quando.apos) { alert("Preenche o QUANDO / IDADE — é obrigatório."); return; }
     const ultimoLado = passagens[passagens.length-1]?.lado || "";
-    const dados = { cab, passagens, escudo, escudoLado: ultimoLado, quando, notas };
+    const dados = { ficha: ficha?.nome, modo: ficha?.modo, face: ficha?.face, cab, passagens, escudo, escudoLado: ultimoLado, quando, notas };
     const txt = gerarRelatorioFiel("Mapeamento Energético Vital", dados, paciente?.nome);
     setRelatorio(txt);
     setLoad(true);
@@ -2577,10 +2589,37 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
       <div className="card" style={{textAlign:"center",padding:"24px 20px"}}>
         <div style={{fontSize:36,marginBottom:8}}>✅</div>
         <div style={{fontSize:14,fontWeight:700,color:"#b0c4d8",marginBottom:4}}>Mapeamento guardado na ficha de {paciente?.nome}!</div>
-        <div style={{fontSize:10,color:"#3d5a7a"}}>Consulta o histórico no separador Pacientes → Consultas.</div>
+        <div style={{fontSize:10,color:"#3d5a7a"}}>Consulta o histórico em Pacientes → Consultas → Ver relatório.</div>
         <div style={{display:"flex",gap:8,marginTop:14}}>
-          <button className="btn btn-p" onClick={()=>{setPassagens([]);setAtual(null);setEscudo("");setQuando({trans:false,gestacao:false,apos:false,texto:""});setNotas("");setGuardado(false);setRelatorio("");setEtapa("cab");}}>Novo Mapeamento</button>
+          <button className="btn btn-p" onClick={()=>{setFicha(null);setPassagens([]);setAtual(null);setEscudo("");setQuando({trans:false,gestacao:false,apos:false,texto:""});setNotas("");setGuardado(false);setRelatorio("");setEtapa("ficha");}}>Novo Mapeamento</button>
           <button className="btn btn-s" onClick={onVoltar}>← Voltar</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ───── ETAPA 0: Escolher o tipo de ficha ───── */
+  if (etapa === "ficha") return (
+    <div className="fade">
+      <div className="card">
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+          <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>←</button>
+          <strong style={{color:"#dde4f0",fontSize:13}}>Que tipo de ficha vais usar?</strong>
+        </div>
+        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:12,lineHeight:1.6}}>
+          Escolhe a ficha conforme o que vais fazer — Avaliação ou Tratamento, Frente ou Costas. O mapeamento segue a estrutura dessa ficha.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {TIPOS_FICHA.map(f => (
+            <div key={f.id} onClick={()=>{setFicha(f);setEtapa("cab");}}
+              style={{cursor:"pointer",padding:"16px 12px",borderRadius:10,border:"2px solid #0d1828",background:"#050810",textAlign:"center",transition:"all .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor="#00c6b8"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor="#0d1828"}>
+              <div style={{fontSize:22,marginBottom:6}}>{f.face==="FRENTE"?"🧍":"🚶"}</div>
+              <div style={{fontWeight:700,fontSize:11,color:"#dde4f0"}}>{f.modo}</div>
+              <div style={{fontSize:10,color:"#00c6b8",marginTop:2}}>{f.face}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -2591,36 +2630,40 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
     <div className="fade">
       <div className="card">
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-          <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>←</button>
-          <strong style={{color:"#dde4f0",fontSize:13}}>CONSULTA DE MAPEAMENTO</strong>
+          <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>setEtapa("ficha")}>←</button>
+          <strong style={{color:"#dde4f0",fontSize:13}}>{ficha?.nome}</strong>
         </div>
         <div className="lbl">PACIENTE: NOME BATISMO COMPLETO *</div>
         <input className="inp" value={paciente?.nome||""} readOnly style={{opacity:.75}} />
         <div className="g2">
           <div><div className="lbl">DATA DE NASCIMENTO *</div><input className="inp" type="date" value={cab.dataNasc} onChange={e=>setCab(c=>({...c,dataNasc:e.target.value}))} /></div>
-          <div><div className="lbl">DATA DA AVALIAÇÃO *</div><input className="inp" type="date" value={cab.dataAval} onChange={e=>setCab(c=>({...c,dataAval:e.target.value}))} /></div>
+          <div><div className="lbl">DATA DA CONSULTA *</div><input className="inp" type="date" value={cab.dataAval} onChange={e=>setCab(c=>({...c,dataAval:e.target.value}))} /></div>
         </div>
-        <div className="lbl">ESTÁ A TOMAR MEDICAÇÃO (qual, dose e quantas vezes ao dia)? *</div>
-        <textarea className="inp" rows={2} value={cab.medicacao} onChange={e=>setCab(c=>({...c,medicacao:e.target.value}))} placeholder="Ex: Sertralina 50mg, 1x/dia de manhã..." />
-        <button className="btn btn-p" style={{marginTop:10}} onClick={()=>setEtapa("lado")}>Continuar → Escolher lado do corpo</button>
+        <div className="g2">
+          <div><div className="lbl">CONSULTA Nº</div><input className="inp" value={cab.consultaNum} onChange={e=>setCab(c=>({...c,consultaNum:e.target.value}))} placeholder="ex: 1, 2, 3..." /></div>
+          <div></div>
+        </div>
+        <div className="lbl">MEDICAÇÃO (qual, dose, vezes/dia)</div>
+        <textarea className="inp" rows={2} value={cab.medicacao} onChange={e=>setCab(c=>({...c,medicacao:e.target.value}))} placeholder="Ex: Sertralina 50mg, 1x/dia..." />
+        <button className="btn btn-p" style={{marginTop:10}} onClick={()=>setEtapa("lado")}>Continuar → Escolher lado</button>
       </div>
     </div>
   );
 
-  /* ───── ETAPA 2: Escolher o lado ───── */
+  /* ───── ETAPA 2: Escolher lado (Direita/Esquerda da face escolhida) ───── */
   if (etapa === "lado") return (
     <div className="fade">
       <div className="card">
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
           <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>passagens.length?setEtapa("final"):setEtapa("cab")}>←</button>
-          <strong style={{color:"#dde4f0",fontSize:13}}>{passagens.length ? "Mapear outro lado" : "Por onde vais começar?"}</strong>
+          <strong style={{color:"#dde4f0",fontSize:13}}>{passagens.length ? "Mapear outro lado" : `${ficha?.face} — por onde começas?`}</strong>
         </div>
         <div style={{fontSize:10,color:"#5a7a9a",marginBottom:12,lineHeight:1.6}}>
-          Escolhe o lado do corpo por onde inicias a investigação. Todos os pontos que travarem ficam associados a este lado.
+          Todos os pontos que travarem ficam guardados como sendo deste lado ({ficha?.face}).
         </div>
         {passagens.length > 0 && (
           <div style={{background:"rgba(0,198,184,.05)",border:"1px solid rgba(0,198,184,.15)",borderRadius:7,padding:"8px 12px",marginBottom:10,fontSize:10,color:"#5ae0d8"}}>
-            ✔ Lados já mapeados: {ladosFeitos.join(" · ")}
+            ✔ Já mapeado: {ladosFeitos.join(" · ")}
           </div>
         )}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -2629,15 +2672,15 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
               style={{cursor:"pointer",padding:"18px 12px",borderRadius:10,border:"2px solid #0d1828",background:"#050810",textAlign:"center",transition:"all .15s"}}
               onMouseEnter={e=>e.currentTarget.style.borderColor="#00c6b8"}
               onMouseLeave={e=>e.currentTarget.style.borderColor="#0d1828"}>
-              <div style={{fontSize:22,marginBottom:6}}>{l.startsWith("FRENTE")?"🧍":"🚶"}</div>
-              <div style={{fontWeight:700,fontSize:12,color:"#dde4f0"}}>{l}</div>
-              <div style={{fontSize:9,color:"#3d5a7a",marginTop:3}}>{l.includes("Esq")?"Trauma racionalizado":"Trauma emocionalizado"}</div>
+              <div style={{fontSize:22,marginBottom:6}}>{l.includes("DIREITA")?"➡️":"⬅️"}</div>
+              <div style={{fontWeight:700,fontSize:12,color:"#dde4f0"}}>{l.includes("DIREITA")?"DIREITA":"ESQUERDA"}</div>
+              <div style={{fontSize:9,color:"#3d5a7a",marginTop:3}}>{l.includes("ESQUERDA")?"Trauma racionalizado":"Trauma emocionalizado"}</div>
             </div>
           ))}
         </div>
         {passagens.length > 0 && (
           <button className="btn btn-s" style={{marginTop:12}} onClick={()=>setEtapa("final")}>
-            Não mapear mais lados → Avançar para o Escudo
+            Não mapear mais → Avançar para o Escudo
           </button>
         )}
       </div>
@@ -2653,16 +2696,16 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
           <span style={{fontSize:9,color:"#3d5a7a"}}>{paciente?.nome}</span>
         </div>
         <div style={{fontSize:10,color:"#5a7a9a",marginTop:4,lineHeight:1.5}}>
-          Marca todos os pontos que travaram neste lado. Segue a ordem: Vitais → Entrada → Zona → Sistemas.
+          Marca os pontos que travaram neste lado. Tudo fica associado a <strong style={{color:"#00c6b8"}}>{atual.lado}</strong>.
         </div>
       </div>
 
-      <ChipGroup titulo={`1. PONTOS VITAIS — ${atual.lado}`} hint="Pesquisa os centros de energia vital. Marca onde o movimento travou." lista={PONTOS_VITAIS} campo="pv" />
-      <ChipGroup titulo={`2. PONTOS DE ENTRADA — ${atual.lado}`} hint="Zona onde o corpo conteve a reação ao trauma." lista={PONTOS_ENTRADA} campo="pe" />
+      <ChipGroup titulo={`1. PONTOS VITAIS — ${atual.lado}`} hint="Pesquisa os centros de energia vital. Marca onde travou." lista={PONTOS_VITAIS} campo="pv" />
+      <ChipGroup titulo={`2. PONTOS DE ENTRADA — ${atual.lado}`} hint="Zona onde o corpo conteve a reação." lista={PONTOS_ENTRADA} campo="pe" />
 
       <div className="card" style={{marginBottom:10}}>
-        <div className="card-t">3. LATERALIDADE (escreve a zona detetada)</div>
-        <input className="inp" value={atual.zona} onChange={e=>setAtual(a=>({...a,zona:e.target.value}))} placeholder="Zona onde travou ao deslizar à volta do corpo..." />
+        <div className="card-t">3. LATERALIDADE (zona detetada)</div>
+        <input className="inp" value={atual.zona} onChange={e=>setAtual(a=>({...a,zona:e.target.value}))} placeholder="Zona onde travou ao deslizar..." />
       </div>
 
       <ChipGroup titulo={`4. SISTEMA SUPERIOR — ${atual.lado}`} lista={SIST_SUP} campo="ss" />
@@ -2671,11 +2714,11 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
 
       <div style={{display:"flex",gap:8,flexDirection:"column"}}>
         <button className="btn btn-p" style={{padding:"12px 0"}} onClick={terminarMapeamento}>
-          ✔ Terminar mapeamento aqui → Avaliar Escudo
+          ✔ Terminar aqui → Avaliar Escudo
         </button>
         {ladosDisponiveis.filter(l=>l!==atual.lado).length > 0 && (
           <button className="btn btn-s" onClick={mapearOutroLado}>
-            ➕ Guardar este lado e mapear outro lado
+            ➕ Guardar este lado e mapear o outro
           </button>
         )}
       </div>
@@ -2686,11 +2729,11 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
   return (
     <div className="fade">
       <div className="card" style={{marginBottom:10}}>
-        <strong style={{color:"#dde4f0",fontSize:13}}>Finalização do Mapeamento</strong>
+        <strong style={{color:"#dde4f0",fontSize:13}}>Finalização — {ficha?.nome}</strong>
         <div style={{fontSize:10,color:"#5ae0d8",marginTop:6,padding:"7px 10px",background:"rgba(0,198,184,.05)",borderRadius:6}}>
-          ✔ Lados mapeados: {ladosFeitos.join(" · ")}
+          ✔ Lados mapeados: {ladosFeitos.join(" · ") || "—"}
         </div>
-        <button className="btn btn-s btn-sm" style={{width:"auto",marginTop:8}} onClick={()=>setEtapa("lado")}>➕ Mapear mais um lado</button>
+        {ladosDisponiveis.length > 0 && <button className="btn btn-s btn-sm" style={{width:"auto",marginTop:8}} onClick={()=>setEtapa("lado")}>➕ Mapear o outro lado</button>}
       </div>
 
       <div className="card" style={{marginBottom:10}}>
@@ -2705,21 +2748,23 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
         </div>
       </div>
 
-      <div className="card" style={{marginBottom:10}}>
-        <div className="card-t">QUANDO (IDADE) *</div>
+      {/* QUANDO — só aparece depois do escudo escolhido, fica sempre visível aqui */}
+      <div className="card" style={{marginBottom:10, opacity: escudo ? 1 : 0.5}}>
+        <div className="card-t">QUANDO (TEMPO / IDADE) *</div>
+        {!escudo && <div style={{fontSize:10,color:"#f59e0b",marginBottom:8}}>↑ Escolhe primeiro o escudo acima.</div>}
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
           {[["trans","TRANSGERACIONAL"],["gestacao","NA GESTAÇÃO"],["apos","APÓS GESTAÇÃO"]].map(([k,l])=>(
-            <button key={k} className={`chip ${quando[k]?"on":""}`} onClick={()=>setQuando(q=>({...q,[k]:!q[k]}))}>{l}</button>
+            <button key={k} className={`chip ${quando[k]?"on":""}`} disabled={!escudo} onClick={()=>setQuando(q=>({...q,[k]:!q[k]}))}>{l}</button>
           ))}
         </div>
         <div className="lbl">ESCREVER — (QUANDO / IDADE) *</div>
-        <input className="inp" value={quando.texto} onChange={e=>setQuando(q=>({...q,texto:e.target.value}))} placeholder="Ex: 2 gerações · Gestação 3º mês · 7 anos..." />
+        <input className="inp" disabled={!escudo} value={quando.texto} onChange={e=>setQuando(q=>({...q,texto:e.target.value}))} placeholder="Ex: 2 gerações · Gestação 3º mês · 7 anos..." />
       </div>
 
       <div className="card" style={{marginBottom:10}}>
-        <div className="card-t">DEVOLUTIVA E NOTAS</div>
-        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:6}}>Entrega ao paciente o que o corpo revelou. Indica áudio e pontos a trabalhar 7/15 dias.</div>
-        <textarea className="inp" rows={4} value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Correlação ponto → escudo → história · Protocolo de cura para casa..." />
+        <div className="card-t">DEVOLUTIVA E PROTOCOLO DE CURA</div>
+        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:6}}>O que o corpo revelou + protocolo de cura para casa (áudio, pontos a trabalhar 7/15 dias).</div>
+        <textarea className="inp" rows={4} value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Correlação ponto → escudo → história · Protocolo de cura..." />
       </div>
 
       <button className="btn btn-p" style={{padding:"12px 0",fontSize:13}} onClick={handleGuardar} disabled={load || passagens.length===0}>
