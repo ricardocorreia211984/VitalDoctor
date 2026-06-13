@@ -1587,581 +1587,6 @@ export default function VitalDoctor() {
 }
 
 // ══════════════════════════════════════════════════════
-// MAPEAMENTO — com initConsulta para lançar directo dos tipos
-// ══════════════════════════════════════════════════════
-function Mapeamento({ user, initConsulta }) {
-  const [etapa, setEtapa] = useState(initConsulta ? "dados" : "tipo");
-  const [tipoSel, setTipoSel] = useState(initConsulta?.tipo || null);
-  const [subSel, setSubSel] = useState(initConsulta?.sub || null);
-  const [notas, setNotas] = useState({});
-  const [caminhoSel, setCaminhoSel] = useState(null);
-  const [stepIdx, setStepIdx] = useState(0);
-  const [escudoScores, setEscudoScores] = useState({});
-  const [protocolDur, setProtocolDur] = useState(7);
-  const [protocolChecks, setProtocolChecks] = useState([...PROTOCOLO.componentes]);
-  const [devolutivaText, setDevolutivaText] = useState("");
-  const [dados, setDados] = useState({ nome:"", dataNasc:"", dataAval: new Date().toISOString().slice(0,10), medicacao:"", paciente_id:"" });
-  const [face, setFace] = useState("frente");
-  const [vitais, setVitais] = useState([]);
-  const [entrada, setEntrada] = useState([]);
-  const [lateral, setLateral] = useState("");
-  const [sel, setSel] = useState([]);
-  const [escudo, setEscudo] = useState("");
-  const [sexo, setSexo] = useState("feminino");
-  const [dias, setDias] = useState(7);
-  const [modo, setModo] = useState("criadora");
-  const [guia, setGuia] = useState(false);
-  const [res, setRes] = useState(null);
-
-  const [pacs, setPacs] = useState([]);
-  useEffect(() => { sb.from("pacientes").select("id,nome,data_nasc,medicacao,genero").eq("terapeuta_id", user?.id).order("nome").then(({ data }) => setPacs(data || [])); }, []);
-  const matches = (dados.nome.trim().length >= 2 && !dados.paciente_id)
-    ? pacs.filter(p => (p.nome || "").toLowerCase().includes(dados.nome.trim().toLowerCase())).slice(0, 6)
-    : [];
-  const escolherPac = (p) => setDados(d => ({ ...d, paciente_id: p.id, nome: p.nome, dataNasc: p.data_nasc || d.dataNasc, medicacao: p.medicacao || d.medicacao }));
-  const iniciarMap = async () => {
-    let id = dados.paciente_id;
-    if (!id && dados.nome.trim()) {
-      const { data } = await sb.from("pacientes").insert({ nome: dados.nome.trim(), data_nasc: dados.dataNasc || null, medicacao: dados.medicacao || null, genero: sexo, terapeuta_id: user?.id }).select().single();
-      if (data) { id = data.id; setDados(d => ({ ...d, paciente_id: id })); setPacs(ps => [...ps, data]); }
-    }
-    const ps = getPassosLocal(tipoSel);
-    setEtapa(ps.some(p => p.id === "mapeamento") ? "mapa" : "passos");
-  };
-
-  const togLocal = (arr, set, v) => set(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
-  const add = (p) => setSel(s => [...s, { key: p.id+"-"+face+"-"+Math.random().toString(36).slice(2,7), id:p.id, nome:p.nome, sistema:p.sistema, lado:"direito", face }]);
-  const setLado = (k,l) => setSel(s => s.map(x => x.key===k ? {...x,lado:l} : x));
-  const rm = (k) => setSel(s => s.filter(x => x.key!==k));
-  const sugerir = () => { const c={}; sel.forEach(x=>(getPonto(x.id)?.escudos||[]).forEach(e=>c[e]=(c[e]||0)+1)); const t=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]; if(t)setEscudo(t[0]); };
-  const gerar = () => setRes(gerarProtocoloCura({ paciente:{nome:dados.nome}, sexo, escudo, protocoloDias:dias, modo, mapeamento: sel.map(x=>({id:x.id,lado:x.lado,face:x.face})) }));
-
-  const imprimir = (txt) => { const w=window.open("","_blank"); w.document.write(`<html><body style="font-family:sans-serif;padding:24px;max-width:700px"><pre style="white-space:pre-wrap;font-size:13px">${txt.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre></body></html>`); w.document.close(); w.print(); };
-
-  const gerarPDFConsulta = ({ paciente: nomePac, dataAval, dataNasc, medicacao, tipo, escudoAtivo, lateralidade, pontos, protocolo, notas }) => {
-    const agora = new Date().toLocaleDateString("pt-PT");
-    const escudoNome = ESCUDOS.find(e => e.id === escudoAtivo)?.nome || escudoAtivo || "—";
-    const pontosHtml = (pontos || []).map(x => {
-      const p = getPonto(x.id);
-      return `<div style="margin-bottom:12px;padding:10px;background:#f9f9f9;border-left:3px solid #1a6b61;border-radius:4px">
-        <strong>${p?.nome || x.id}</strong> <span style="color:#666;font-size:11px">(${x.lado || ""} · ${x.face || ""})</span>
-        ${p?.aspectos ? `<div style="margin-top:4px;font-size:12px"><em>Aspecto emocional:</em> ${p.aspectos}</div>` : ""}
-        ${p?.sintomas ? `<div style="font-size:12px"><em>Sinais no corpo:</em> ${p.sintomas}</div>` : ""}
-        ${p?.frase ? `<div style="font-size:12px;color:#1a6b61"><em>Pergunta terapêutica:</em> "${p.frase}"</div>` : ""}
-      </div>`;
-    }).join("");
-    const protocoloHtml = protocolo ? `<pre style="white-space:pre-wrap;font-size:12px;background:#f0faf9;padding:14px;border-radius:6px;border:1px solid #c0e0dc">${protocolo.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>` : "";
-    const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8">
-      <title>Relatório — ${nomePac}</title>
-      <style>
-        body{font-family:'Georgia',serif;margin:0;padding:0;color:#1a1a2e}
-        .pg{padding:32px 40px;max-width:720px;margin:0 auto}
-        .hdr{border-bottom:3px solid #1a6b61;padding-bottom:16px;margin-bottom:24px}
-        .logo{font-size:22px;letter-spacing:4px;color:#1a6b61;font-weight:bold}
-        .sub{font-size:10px;color:#666;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
-        h2{font-size:16px;color:#1a1a2e;margin:0 0 4px}
-        .meta{font-size:11px;color:#666;margin-bottom:20px}
-        .sec{margin-bottom:24px}
-        .sec-t{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#1a6b61;border-bottom:1px solid #c0e0dc;padding-bottom:4px;margin-bottom:12px;font-weight:bold}
-        .escudo{background:linear-gradient(135deg,#1a6b61,#0d4a42);color:white;padding:12px 18px;border-radius:8px;margin-bottom:16px}
-        .escudo-n{font-size:18px;font-weight:bold}
-        .escudo-s{font-size:11px;opacity:.8;margin-top:3px}
-        .disc{font-size:9px;color:#999;border-top:1px solid #eee;padding-top:12px;margin-top:24px;line-height:1.6}
-        @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-      </style>
-    </head><body>
-    <div class="pg">
-      <div class="hdr">
-        <div class="logo">VITALDOCTOR</div>
-        <div class="sub">Relatório de Atendimento Terapêutico</div>
-      </div>
-      <h2>${nomePac}</h2>
-      <div class="meta">
-        Data da avaliação: ${dataAval || agora}
-        ${dataNasc ? ` · Nascimento: ${dataNasc}` : ""}
-        ${tipo ? ` · Tipo: ${tipo}` : ""}
-        ${medicacao ? `<br>Medicação: ${medicacao}` : ""}
-      </div>
-      ${escudoAtivo ? `<div class="sec">
-        <div class="sec-t">Escudo Emocional Identificado</div>
-        <div class="escudo">
-          <div class="escudo-n">${escudoNome}</div>
-          <div class="escudo-s">${lateralidade ? "Lateralidade: " + lateralidade : "Registo de memórias celulares identificado no mapeamento energético"}</div>
-        </div>
-      </div>` : ""}
-      ${pontos?.length ? `<div class="sec"><div class="sec-t">Pontos Identificados no Mapeamento</div>${pontosHtml}</div>` : ""}
-      ${protocolo ? `<div class="sec"><div class="sec-t">Protocolo de Cura — Para Aplicar em Casa</div>
-        <div style="font-size:11px;color:#666;margin-bottom:8px;font-style:italic">Este protocolo foi elaborado especificamente para si. Siga as orientações do seu terapeuta com regularidade para melhores resultados.</div>
-        ${protocoloHtml}
-      </div>` : ""}
-      ${notas ? `<div class="sec"><div class="sec-t">Notas da Sessão</div><div style="font-size:12px;line-height:1.7">${notas}</div></div>` : ""}
-      <div class="disc">
-        <strong>Aviso Legal:</strong> Este relatório foi gerado pela aplicação VitalDoctor como ferramenta de apoio ao atendimento terapêutico. Não constitui diagnóstico médico nem substitui avaliação clínica especializada. O conteúdo é da responsabilidade exclusiva do terapeuta que realizou o atendimento. Qualquer alteração de medicação ou tratamento médico deve ser sempre discutida com o médico prescritor.
-        <br>VitalDoctor · vitaldoctor.netlify.app · Dados protegidos ao abrigo do RGPD · ${agora}
-      </div>
-    </div>
-    </body></html>`;
-    const w = window.open("", "_blank");
-    w.document.write(html);
-    w.document.close();
-    setTimeout(() => w.print(), 500);
-  };
-  const guardar = async () => { if(!res) return; try { await sb.from("consultas").insert({ paciente_id:dados.paciente_id||null, paciente_nome:dados.nome, data_avaliacao:dados.dataAval, data_nascimento:dados.dataNasc||null, medicacao:dados.medicacao||null, tipo:"mapeamento", escudo_ativo:escudo, pontos:sel, centros_vitais:vitais, pontos_entrada:entrada, lateralidade:lateral, protocolo:res.texto, terapeuta_id:user?.id }); alert("Guardado na ficha! ✅"); } catch { alert("Erro ao guardar. Verifica a tabela 'consultas' no Supabase."); } };
-
-  const tipoObj = tipoSel ? (getTipoLocal(tipoSel) || null) : null;
-  const subObj = null;
-  const passosAtuais = tipoSel ? getPassosLocal(tipoSel) : [];
-  const temMapeamento = passosAtuais.some(p => p.id === "mapeamento");
-  const podeAvancar = !!tipoObj;
-
-  const guardarGuia = async () => {
-    if (!dados.nome.trim()) { alert("Falta o nome do paciente."); return; }
-    let id = dados.paciente_id;
-    if (!id) {
-      const { data } = await sb.from("pacientes").insert({ nome: dados.nome.trim(), data_nasc: dados.dataNasc||null, medicacao: dados.medicacao||null, genero: sexo, terapeuta_id: user?.id }).select().single();
-      if (data) id = data.id;
-    }
-    const resumo = devolutivaText ||
-      (`${tipoObj?.nome||""}${subObj?` · ${subObj.nome}`:""}\n\n` +
-      passosAtuais.map((p,i)=>`${i+1}. ${p.titulo}`).join("\n") +
-      (caminhoSel ? `\n\nCaminho: ${CAMINHOS.find(c=>c.id===caminhoSel)?.nome||""}` : "") +
-      (protocolChecks.length ? `\n\nProtocolo (${protocolDur} dias):\n${protocolChecks.map(c=>`• ${c}`).join("\n")}` : "") +
-      (notas.protocolo ? `\n\n${notas.protocolo}` : ""));
-    try {
-      await sb.from("consultas").insert({ paciente_id:id||null, paciente_nome:dados.nome, data_avaliacao:dados.dataAval, data_nascimento:dados.dataNasc||null, medicacao:dados.medicacao||null, tipo:tipoSel, protocolo:resumo, terapeuta_id:user?.id });
-      alert("✅ Consulta guardada na ficha!");
-      setEtapa("tipo"); setTipoSel(null); setSubSel(null); setStepIdx(0); setNotas({}); setCaminhoSel(null); setEscudoScores({}); setDevolutivaText(""); setProtocolChecks([...PROTOCOLO.componentes]);
-    } catch { alert("Erro ao guardar. Verifica a tabela 'consultas'."); }
-  };
-
-  // ── ECRÃ: Selecção de tipo (quando initConsulta não existe)
-  if (etapa === "tipo") return (
-    <div className="fade">
-      <div className="card">
-        <div className="card-t">Tipo de atendimento</div>
-        <div className="al al-i" style={{fontSize:10}}>Escolhe o tipo de consulta. A app mostra o passo a passo para te guiar. Nem todos os tipos usam o mapeamento do corpo.</div>
-        {TIPOS_CONSULTA_LOCAL.map(x => (
-          <div key={x.id} className="admin-section" style={{cursor:"pointer",borderColor: tipoSel===x.id ? "#00c6b8" : undefined, marginTop:6}} onClick={()=>{setTipoSel(x.id);setSubSel(null);setStepIdx(0);setNotas({});setCaminhoSel(null);setEscudoScores({});setDevolutivaText("");}}>
-            <div style={{fontWeight:700,fontSize:12,color:"#b0c4d8"}}>{x.nome}</div>
-            <div style={{fontSize:10,color:"#5a7a9a",marginTop:2}}>{x.indicado}</div>
-            {x.nota && <div style={{fontSize:9,color:"#2d4a66",marginTop:2}}>{x.nota}</div>}
-          </div>
-        ))}
-      </div>
-
-      {tipoObj?.subconsultas && (
-        <div className="card">
-          <div className="card-t">Qual sessão?</div>
-          {tipoObj.subconsultas.map(sc => (
-            <div key={sc.id} className="admin-section" style={{cursor:"pointer",borderColor: subSel===sc.id ? "#00c6b8" : undefined, marginTop:6}} onClick={()=>{setSubSel(sc.id);setStepIdx(0);}}>
-              <div style={{fontWeight:600,fontSize:11,color:"#b0c4d8"}}>{sc.nome}</div>
-              {sc.nota && <div style={{fontSize:9,color:"#5a7a9a",marginTop:2}}>{sc.nota}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {podeAvancar && (
-        <div className="card">
-          <div className="card-t">Passo a passo {temMapeamento ? "· inclui mapeamento" : "· sem mapeamento"}</div>
-          <ol style={{margin:"0 0 0 16px",padding:0,fontSize:11,color:"#5a7a9a"}}>
-            {passosAtuais.map(p => <li key={p.id} style={{marginBottom:6}}><strong style={{color:"#b0c4d8"}}>{p.titulo}</strong>{p.descricao ? ` — ${p.descricao}` : ""}</li>)}
-          </ol>
-          <button className="btn btn-p" style={{marginTop:10}} onClick={()=>setEtapa("dados")}>Continuar para dados do paciente →</button>
-        </div>
-      )}
-    </div>
-  );
-
-  // ── ECRÃ: Passos guiados
-  if (etapa === "passos") {
-    const passo = passosAtuais[stepIdx];
-    const isLast = stepIdx === passosAtuais.length - 1;
-    const escDom = ESCUDOS.reduce((best,e)=>((escudoScores[e.id]||0)>(escudoScores[best?.id]||0)?e:best), ESCUDOS[0]);
-
-    const gerarDevolutiva = () => {
-      const e = escDom;
-      const cam = CAMINHOS.find(c=>c.id===caminhoSel);
-      const pNome = dados.nome || "paciente";
-      const resps = PERGUNTAS_ABERTURA.map((q,qi)=>notas["q"+qi]?`• ${q}\n  → ${notas["q"+qi]}`:null).filter(Boolean).join("\n");
-      const monit = MONITORIZACAO_LOCAL.map((q,qi)=>notas["m"+qi]?`• ${q}\n  → ${notas["m"+qi]}`:null).filter(Boolean).join("\n");
-      return `DEVOLUTIVA — ${tipoObj?.nome||""}${subObj?` · ${subObj.nome}`:""}\nPaciente: ${pNome} | Data: ${dados.dataAval||""}\n\n` +
-        `ESCUDO DOMINANTE: ${e.nome}\n"${e.sentenca}"\n\nFOCO: ${e.foco}\n\nORIGEM:\n${e.origem}\n\nIMPACTO NO CORPO: ${e.corpo}\n\nORIENTAÇÃO:\n${e.devolutiva}\n\n` +
-        (cam?`CAMINHO: ${cam.nome}\n${cam.passos.map(p=>`• ${p}`).join("\n")}\n\n`:"") +
-        (resps?`PERGUNTAS DE ABERTURA:\n${resps}\n\n`:"") +
-        (monit?`MONITORIZAÇÃO:\n${monit}\n\n`:"") +
-        `PROTOCOLO (${protocolDur} dias):\n${protocolChecks.map(c=>`• ${c}`).join("\n")}`;
-    };
-
-    // Índice do caminho: 0=consciente, 1=mapeamento/subconsciente, 2=estressores
-    const caminhoIdx = CAMINHOS.findIndex(c => c.id === caminhoSel);
-    const isCaminhoMapa = caminhoIdx === 1;
-    const isCaminhoEstressores = caminhoIdx === 2;
-
-    const avancar = () => {
-      // Caminho 2 (Mente Subconsciente) → vai para mapeamento corporal
-      if (passo.id === "caminho" && isCaminhoMapa) {
-        setEtapa("mapa");
-        return;
-      }
-      if (passo.id==="devolutiva" && !devolutivaText) setDevolutivaText(gerarDevolutiva());
-      if (isLast) { guardarGuia(); return; }
-      setStepIdx(i=>i+1);
-    };
-
-    return (
-      <div className="fade">
-        <div className="card" style={{paddingBottom:8}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>{if(stepIdx>0)setStepIdx(i=>i-1);else setEtapa("dados");}}>←</button>
-            <div style={{fontSize:11,color:"#5a7a9a",textAlign:"center"}}>
-              <strong style={{color:"#b0c4d8"}}>{tipoObj?.nome}{subObj?` · ${subObj.nome}`:""}</strong><br/>
-              Passo {stepIdx+1} de {passosAtuais.length}
-            </div>
-            <div style={{fontSize:10,color:"#00c6b8"}}>{dados.nome||"paciente"}</div>
-          </div>
-          <div style={{height:4,background:"#1a2a3a",borderRadius:2,marginTop:8}}>
-            <div style={{height:4,background:"#00c6b8",borderRadius:2,width:`${((stepIdx+1)/passosAtuais.length)*100}%`,transition:"width .3s"}}/>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-t">🔹 {passo.titulo}</div>
-          {passo.descricao && <div style={{fontSize:11,color:"#5a7a9a",marginBottom:10,lineHeight:1.6,padding:"8px 10px",background:"#0d1f2d",borderRadius:8,borderLeft:"3px solid #00c6b8"}}>{passo.descricao}</div>}
-
-          {passo.id==="acolhimento" && (
-            <div>
-              <div style={{background:"#0d2535",border:"1px solid #1a3a5c",borderRadius:8,padding:"10px 12px",marginBottom:10,fontSize:10,color:"#5ae0d8",lineHeight:1.6}}>
-                💙 "Você está seguro aqui. Vamos juntos olhar para o que precisa ser ouvido."
-                <div style={{marginTop:6,color:"#3d7a9a"}}>
-                  Observe como o paciente chega. Escuta além das palavras: como está o corpo? A respiração? A energia? Se sentir tensão, conduza uma respiração guiada antes de começar.
-                </div>
-              </div>
-              <div style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:"#b0c4d8",fontWeight:600,marginBottom:6}}>Estado emocional predominante</div>
-                <div style={{display:"flex",gap:8}}>
-                  {[["ansioso","😰 Ansioso(a)","Caminhos rápidos e práticos · respiração, autocuidado, micro-acções"],["depressivo","😔 Depressivo(a)","Acolhimento e leveza · micro metas, segurança emocional"]].map(([k,l,h])=>(
-                    <div key={k} onClick={()=>setNotas(n=>({...n,estado_emocional:k}))}
-                      style={{flex:1,cursor:"pointer",padding:"10px 12px",borderRadius:8,border:`2px solid ${notas.estado_emocional===k?"#00c6b8":"#1a2a3a"}`,background:notas.estado_emocional===k?"#0d2535":"#0a1620"}}>
-                      <div style={{fontWeight:700,fontSize:12,color:"#dde4f0"}}>{l}</div>
-                      <div style={{fontSize:9,color:"#3d5a7a",marginTop:4,lineHeight:1.4}}>{h}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {notas.estado_emocional && (
-                <div style={{background:"rgba(0,198,184,.06)",border:"1px solid rgba(0,198,184,.2)",borderRadius:7,padding:"8px 12px",fontSize:10,color:"#5ae0d8",marginBottom:8}}>
-                  {notas.estado_emocional==="ansioso"
-                    ? "⚡ Foco: Ofereça acções simples e imediatas. Respiração, organização de rotina, autocuidado."
-                    : "💙 Foco: Acolhimento e leveza emocional. Trabalha com micro metas e devolve a sensação de que é possível continuar."}
-                </div>
-              )}
-              <textarea className="inp" rows={3} placeholder="Notas de acolhimento (como chegou, estado geral, observações)..." value={notas.acolhimento||""} onChange={e=>setNotas(n=>({...n,acolhimento:e.target.value}))} />
-            </div>
-          )}
-
-          {passo.id==="perguntas" && PERGUNTAS_ABERTURA.map((q,qi)=>(
-            <div key={qi} style={{marginBottom:10}}>
-              <div style={{fontSize:12,color:"#00c6b8",fontWeight:600,marginBottom:4}}>{qi+1}. {q}</div>
-              <textarea className="inp" rows={2} style={{resize:"vertical"}} value={notas["q"+qi]||""} onChange={e=>setNotas(n=>({...n,["q"+qi]:e.target.value}))} placeholder="Resposta / notas..." />
-            </div>
-          ))}
-
-          {passo.id==="caminho" && <>
-            {CAMINHOS.map(c=>(
-              <div key={c.id} onClick={()=>setCaminhoSel(c.id)} style={{cursor:"pointer",padding:10,marginBottom:8,borderRadius:8,border:`2px solid ${caminhoSel===c.id?"#00c6b8":"#1a2a3a"}`,background:caminhoSel===c.id?"#0d2535":"#0a1620"}}>
-                <div style={{fontWeight:700,fontSize:12,color:"#b0c4d8"}}>{c.nome}</div>
-                <div style={{fontSize:10,color:"#5a7a9a",marginTop:2}}>{c.indicado}</div>
-                <ul style={{margin:"6px 0 0 16px",padding:0,fontSize:10,color:"#4a7a9b"}}>
-                  {c.passos.map((s,si)=><li key={si} style={{marginBottom:2}}>{s}</li>)}
-                </ul>
-              </div>
-            ))}
-            {/* Caminho 1: Escudos */}
-            {caminhoSel==="consciente" && <div style={{marginTop:10}}>
-              <div style={{fontSize:11,color:"#b0c4d8",fontWeight:600,marginBottom:6}}>Pontuação dos Escudos (0–10)</div>
-              <div style={{fontSize:10,color:"#5a7a9a",marginBottom:8}}>Apresenta os 5 escudos ao paciente. Pede que pontue de 0 a 10 qual sente mais presente hoje.</div>
-              {ESCUDOS.map(e=>(
-                <div key={e.id} style={{marginBottom:8}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:11,color:"#b0c4d8",fontWeight:600}}>{e.nome}</div>
-                      <div style={{fontSize:9,color:"#5a7a9a"}}>{e.foco}</div>
-                    </div>
-                    <input type="number" min={0} max={10} style={{width:52,padding:"4px 6px",background:"#0a1620",border:"1px solid #1a3a5a",borderRadius:6,color:"#00c6b8",fontSize:14,fontWeight:700,textAlign:"center"}} value={escudoScores[e.id]||""} onChange={ev=>setEscudoScores(s=>({...s,[e.id]:Number(ev.target.value)}))} placeholder="0" />
-                  </div>
-                </div>
-              ))}
-              {Object.keys(escudoScores).length>0 && <div style={{padding:"8px 10px",background:"#0d2535",borderRadius:8,marginTop:6,fontSize:11}}>
-                <span style={{color:"#5a7a9a"}}>Escudo dominante: </span>
-                <strong style={{color:"#f59e0b"}}>{escDom?.nome}</strong>
-                <div style={{fontSize:10,color:"#5a7a9a",marginTop:2}}>{escDom?.sentenca}</div>
-              </div>}
-            </div>}
-
-            {/* Caminho 2: Mapeamento Energético → avançar vai para o mapa corporal */}
-            {isCaminhoMapa && caminhoSel && (
-              <div style={{marginTop:10,padding:"10px 14px",background:"#0d2535",border:"1px solid #1a4a5c",borderRadius:8}}>
-                <div style={{fontSize:12,color:"#00c6b8",fontWeight:700,marginBottom:4}}>🗺️ Mapeamento Energético</div>
-                <div style={{fontSize:11,color:"#5a7a9a",lineHeight:1.6}}>
-                  Ao clicar em <strong style={{color:"#b0c4d8"}}>"Próximo"</strong> abrirá o mapeamento corporal completo com os 4 mapas:<br/>
-                  <span style={{color:"#4a7a9b"}}>Mapa 1 — Centros Vitais · Mapa 2 — Zonas de Impacto · Mapa 3 — Lateralidade · Mapa 4 — Sistemas</span>
-                </div>
-                <div style={{fontSize:10,color:"#2d4a66",marginTop:6}}>
-                  Ideal para: 2ª consulta · Pacientes que já conhecem a técnica · Aceder à raiz profunda do sintoma
-                </div>
-              </div>
-            )}
-
-            {/* Caminho 3: Estressores e Gatilhos */}
-            {isCaminhoEstressores && caminhoSel && (
-              <div style={{marginTop:10}}>
-                <div style={{fontSize:11,color:"#b0c4d8",fontWeight:600,marginBottom:8}}>🔥 Perguntas dos Estressores Ativos</div>
-                <div style={{fontSize:10,color:"#5a7a9a",marginBottom:10,lineHeight:1.5}}>
-                  Regista as respostas do paciente. Este caminho permite reconhecer padrões e mostrar que fazer o mesmo trará os mesmos resultados.
-                </div>
-                {[
-                  ["e1","1. Quem do seu convívio atual mais te estressa ou altera o teu humor?"],
-                  ["e2","2. O que essa pessoa faz ou diz que mais te desestabiliza?"],
-                  ["e3","3. Que situações te tiram do foco?"],
-                  ["e4","4. Já existiu alguém no passado com esse mesmo papel?"],
-                  ["e5","5. O que essas pessoas tinham em comum?"]
-                ].map(([k, q]) => (
-                  <div key={k} style={{marginBottom:10}}>
-                    <div style={{fontSize:11,color:"#00c6b8",fontWeight:600,marginBottom:4}}>{q}</div>
-                    <textarea className="inp" rows={2} style={{resize:"vertical"}} value={notas[k]||""} onChange={e=>setNotas(n=>({...n,[k]:e.target.value}))} placeholder="Resposta do paciente..." />
-                  </div>
-                ))}
-              </div>
-            )}
-          </>}
-
-          {passo.id==="monitorizacao" && MONITORIZACAO_LOCAL.map((q,qi)=>(
-            <div key={qi} style={{marginBottom:10}}>
-              <div style={{fontSize:11,color:"#00c6b8",fontWeight:600,marginBottom:4}}>{q}</div>
-              <textarea className="inp" rows={2} style={{resize:"vertical"}} value={notas["m"+qi]||""} onChange={e=>setNotas(n=>({...n,["m"+qi]:e.target.value}))} placeholder="Resposta..." />
-            </div>
-          ))}
-
-          {passo.id==="devolutiva" && <>
-            {!devolutivaText && <button className="btn btn-p" style={{marginBottom:8}} onClick={()=>setDevolutivaText(gerarDevolutiva())}>✨ Gerar devolutiva automática</button>}
-            <textarea className="inp" rows={12} style={{resize:"vertical",fontSize:11,lineHeight:1.6}} value={devolutivaText} onChange={e=>setDevolutivaText(e.target.value)} placeholder="A devolutiva aparece aqui após gerar. Podes editar à vontade antes de guardar." />
-            {devolutivaText && <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
-              <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>navigator.clipboard?.writeText(devolutivaText)}>📋 Copiar texto</button>
-              <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={()=>gerarPDFConsulta({paciente:dados.nome,dataAval:dados.dataAval,dataNasc:dados.dataNasc,medicacao:dados.medicacao,tipo:tipoSel,escudoAtivo:Object.entries(escudoScores).sort((a,b)=>b[1]-a[1])[0]?.[0],pontos:[],protocolo:devolutivaText})}>🖨️ Gerar PDF</button>
-            </div>}
-          </>}
-
-          {passo.id==="protocolo" && <>
-            <div style={{background:"rgba(0,198,184,.04)",border:"1px solid rgba(0,198,184,.15)",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:11,color:"#5ae0d8",lineHeight:1.6}}>
-              🏠 <strong>Protocolo de Cura em Casa</strong> — Este é o trabalho que o paciente vai realizar entre sessões. Define com cuidado: é o que sustenta a transformação fora do consultório.
-            </div>
-            <div className="lbl">Duração do protocolo</div>
-            <div style={{display:"flex",gap:8,marginBottom:12}}>
-              {PROTOCOLO.duracoes.map(d=>(
-                <button key={d} className={`chip ${protocolDur===d?"on":""}`} onClick={()=>setProtocolDur(d)}>{d} dias</button>
-              ))}
-            </div>
-            <div className="lbl">Componentes incluídos</div>
-            {PROTOCOLO.componentes.map((c,ci)=>(
-              <label key={ci} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,cursor:"pointer",padding:"8px 10px",background:protocolChecks.includes(c)?"#0d2535":"#050810",border:`1px solid ${protocolChecks.includes(c)?"#1a4a5c":"#0d1828"}`,borderRadius:7,transition:"all .15s"}}>
-                <input type="checkbox" checked={protocolChecks.includes(c)} onChange={ev=>{if(ev.target.checked)setProtocolChecks(p=>[...p,c]);else setProtocolChecks(p=>p.filter(x=>x!==c));}} style={{accentColor:"#00c6b8"}} />
-                <span style={{fontSize:11,color:protocolChecks.includes(c)?"#b0c4d8":"#3d5a7a"}}>{c}</span>
-              </label>
-            ))}
-            <div style={{marginTop:8}}>
-              <span className="lbl">Notas personalizadas do protocolo</span>
-              <textarea className="inp" rows={4} placeholder="Áudio específico a enviar · Alimentos a incluir/retirar · Exercícios de respiração · Afirmações · Práticas diárias..." value={notas.protocolo||""} onChange={e=>setNotas(n=>({...n,protocolo:e.target.value}))} />
-            </div>
-            {protocolChecks.length > 0 && (
-              <div style={{marginTop:10,background:"#061020",border:"1px solid #1a3a5c",borderRadius:8,padding:"12px 14px"}}>
-                <div style={{fontSize:9,color:"#00c6b8",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Protocolo de {protocolDur} dias — {dados.nome || "paciente"}</div>
-                {protocolChecks.map((c,i) => <div key={i} style={{fontSize:11,color:"#5a7a9a",marginBottom:3}}>✓ {c}</div>)}
-                {notas.protocolo && <div style={{fontSize:11,color:"#5a7a9a",marginTop:6,borderTop:"1px solid #0d1828",paddingTop:6}}>{notas.protocolo}</div>}
-              </div>
-            )}
-          </>}
-        </div>
-
-        <div className="card" style={{display:"flex",gap:8}}>
-          {stepIdx>0 && <button className="btn btn-s" style={{flex:1}} onClick={()=>setStepIdx(i=>i-1)}>← Anterior</button>}
-          <button className="btn btn-p" style={{flex:2}} onClick={avancar}>
-            {isLast ? "💾 Guardar consulta na ficha" : `Próximo: ${passosAtuais[stepIdx+1]?.titulo} →`}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── ECRÃ: Dados do paciente
-  if (etapa === "dados") return (
-    <div className="fade">
-      <div className="card">
-        <button className="btn btn-s btn-sm" style={{width:"auto",marginBottom:6}} onClick={()=>setEtapa("tipo")}>← {tipoObj?.nome || "Tipo"}</button>
-        <div className="card-t">Dados do Paciente</div>
-        {tipoObj && (
-          <div style={{background:"#0d2535",border:"1px solid #1a3a5c",borderRadius:8,padding:"10px 12px",marginBottom:10}}>
-            <div style={{fontWeight:700,fontSize:12,color:"#00c6b8"}}>{tipoObj.nome}{subObj?` · ${subObj.nome}`:""}</div>
-            <div style={{fontSize:10,color:"#5a7a9a",marginTop:2}}>{passosAtuais.length} passos · {temMapeamento?"inclui mapeamento":"sem mapeamento"}</div>
-          </div>
-        )}
-        <div className="al al-i" style={{fontSize:10}}>Preenche os dados antes de iniciar.</div>
-        <div className="lbl" style={{marginTop:8}}>Nome completo *</div>
-        <input className="inp" value={dados.nome} onChange={e=>setDados(d=>({...d,nome:e.target.value,paciente_id:""}))} placeholder="Escreve o nome para procurar ou criar..." />
-        {matches.length > 0 && (
-          <div style={{border:"1px solid #1a3a5c",borderRadius:7,marginTop:3,overflow:"hidden"}}>
-            {matches.map(p => (
-              <div key={p.id} onClick={()=>escolherPac(p)} style={{padding:"7px 10px",cursor:"pointer",borderBottom:"1px solid #0d1828",fontSize:12,color:"#b0c4d8"}}>
-                👤 {p.nome}{p.data_nasc ? <span style={{color:"#2d4a66"}}> · {fmtData(p.data_nasc)}</span> : null}
-              </div>
-            ))}
-          </div>
-        )}
-        {dados.paciente_id && <div style={{fontSize:10,color:"#00c6b8",marginTop:3}}>✓ Paciente registado — dados preenchidos automaticamente.</div>}
-        {!dados.paciente_id && dados.nome.trim().length >= 2 && matches.length === 0 && <div style={{fontSize:10,color:"#f59e0b",marginTop:3}}>Novo paciente — será registado ao iniciar.</div>}
-        <div className="lbl">Data de nascimento</div>
-        <input className="inp" type="date" value={dados.dataNasc} onChange={e=>setDados(d=>({...d,dataNasc:e.target.value}))} />
-        <div className="lbl">Data da avaliação</div>
-        <input className="inp" type="date" value={dados.dataAval} onChange={e=>setDados(d=>({...d,dataAval:e.target.value}))} />
-        <div className="lbl">Medicação (qual · dose · vezes/dia)</div>
-        <textarea className="inp" rows={2} style={{resize:"vertical"}} value={dados.medicacao} onChange={e=>setDados(d=>({...d,medicacao:e.target.value}))} placeholder="Ex: Sertralina 50mg 1x/dia · Deixa em branco se não toma" />
-        <button className="btn btn-p" style={{marginTop:8}} onClick={iniciarMap} disabled={!dados.nome.trim()}>{temMapeamento ? "Iniciar mapeamento →" : "Seguir passo a passo →"}</button>
-      </div>
-    </div>
-  );
-
-  // ── ECRÃ: Mapeamento corporal
-  return (
-    <div className="fade">
-      <div className="card">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div className="card-t">Mapeamento — {dados.nome}</div>
-          <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>{setEtapa("dados");setRes(null);}}>← Dados</button>
-        </div>
-        <div style={{fontSize:9,color:"#2d4a66"}}>{dados.dataAval}{dados.medicacao ? ` · Medicação: ${dados.medicacao}` : " · Sem medicação"}</div>
-        <button className="btn btn-s btn-sm" style={{width:"auto",marginTop:6}} onClick={()=>setGuia(g=>!g)}>{guia?"Ocultar guia":"Ver guia dos 4 mapas"}</button>
-        {guia && <div style={{marginTop:8,fontSize:11,color:"#5a7a9a",lineHeight:1.5}}>{MAPEAMENTO_PASSOS.map(p=><div key={p.n} style={{marginBottom:5}}><strong>{p.titulo}:</strong> {p.texto}</div>)}</div>}
-      </div>
-
-      <div className="card">
-        <div className="lbl">Face a registar</div>
-        <div style={{display:"flex",gap:6}}>{["frente","costas"].map(f=><button key={f} className={`chip ${face===f?"on":""}`} onClick={()=>setFace(f)}>{f}</button>)}</div>
-      </div>
-
-      <div className="card">
-        <div className="card-t">Mapa 1 — Centros vitais</div>
-        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:8}}>Mão na orelha do lado a investigar → apalpar os 7 centros até sentir a vibração diferente. Toca no que travou.</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{CENTROS_VITAIS.map(c=><button key={c.id} className={`chip ${vitais.includes(c.id)?"on":""}`} onClick={()=>togLocal(vitais,setVitais,c.id)}>{c.nome}</button>)}</div>
-      </div>
-
-      <div className="card">
-        <div className="card-t">Mapa 2 — Pontos de entrada ({entrada.length}/13)</div>
-        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:8}}>Mover a mão para o centro que travou → percorrer os 13 pontos até travar.</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {PONTOS_ENTRADA.flatMap(z=>z.bilateral
-            ?[{key:z.id+"-D",label:z.nome+" Dir",loc:z.localizacao+" (dir)"},
-              {key:z.id+"-E",label:z.nome+" Esq",loc:z.localizacao+" (esq)"}]
-            :[{key:z.id,label:z.nome,loc:z.localizacao}]
-          ).map(o=>(
-            <div key={o.key} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-              <button className={`chip ${entrada.includes(o.key)?"on":""}`} onClick={()=>togLocal(entrada,setEntrada,o.key)}>{o.label}</button>
-              <span style={{fontSize:8,color:"#2d4a66",textAlign:"center",maxWidth:80,lineHeight:1.2}}>{o.loc}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-t">Mapa 3 — Lateralidade</div>
-        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:8}}>Manter a mão no ponto do Mapa 2 → deslizar a outra à volta do tronco e pernas até travar.</div>
-        <input className="inp" placeholder="Ex: coxa esquerda · parte interna · costas" value={lateral} onChange={e=>setLateral(e.target.value)} />
-      </div>
-
-      <div className="card">
-        <div className="card-t">Mapa 4 — Sistemas (face: {face})</div>
-        {["Superior","Central","Inferior"].map(sis=>(
-          <div key={sis} style={{marginBottom:10}}>
-            <div className="lbl" style={{marginBottom:4}}>{sis}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{PONTOS_POR_SISTEMA[sis].map(p=><button key={p.id} className="chip" onClick={()=>add(p)}>{p.nome} +</button>)}</div>
-          </div>
-        ))}
-      </div>
-
-      {sel.length>0 && <div className="card">
-        <div className="card-t">Pontos detetados ({sel.length})</div>
-        {sel.map(x=>(
-          <div key={x.key} className="agenda-row" style={{alignItems:"center",gap:5}}>
-            <div style={{flex:1,fontSize:11,color:"#b0c4d8"}}>{x.nome} <span style={{color:"#2d4a66"}}>· {x.face}</span></div>
-            <button className={`chip ${x.lado==="direito"?"on":""}`} onClick={()=>setLado(x.key,"direito")}>Dir</button>
-            <button className={`chip ${x.lado==="esquerdo"?"on":""}`} onClick={()=>setLado(x.key,"esquerdo")}>Esq</button>
-            <button className="chip" onClick={()=>rm(x.key)}>✕</button>
-          </div>
-        ))}
-      </div>}
-
-      <div className="card">
-        <div className="card-t">Escudo ativo</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>{ESCUDOS.map(e=><button key={e.id} className={`chip ${escudo===e.id?"on":""}`} onClick={()=>setEscudo(e.id)}>{e.nome}</button>)}</div>
-        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={sugerir} disabled={!sel.length}>Sugerir pelo mapeamento</button>
-      </div>
-
-      <div className="card">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <div><div className="lbl">Sexo</div><div style={{display:"flex",gap:5}}>{["feminino","masculino"].map(s=><button key={s} className={`chip ${sexo===s?"on":""}`} onClick={()=>setSexo(s)}>{s}</button>)}</div></div>
-          <div><div className="lbl">Dias</div><div style={{display:"flex",gap:5}}>{[7,15].map(d=><button key={d} className={`chip ${dias===d?"on":""}`} onClick={()=>setDias(d)}>{d}</button>)}</div></div>
-        </div>
-        <div style={{marginTop:8}}><div className="lbl">Modo</div><div style={{display:"flex",gap:5}}>
-          <button className={`chip ${modo==="criadora"?"on":""}`} onClick={()=>setModo("criadora")}>Lados juntos</button>
-          <button className={`chip ${modo==="separados"?"on":""}`} onClick={()=>setModo("separados")}>Lados separados</button>
-        </div></div>
-      </div>
-
-      <button className="btn btn-p" onClick={gerar} disabled={!sel.length||!escudo}>Gerar relatório + protocolo</button>
-      {(!sel.length||!escudo) && <div style={{fontSize:10,color:"#2d4a66",textAlign:"center",marginTop:5}}>Seleciona pelo menos 1 ponto e o escudo ativo.</div>}
-
-      {res && <>
-        <div className="card" style={{marginTop:10}}>
-          <div className="card-t">Relatório de consciência</div>
-          <div style={{fontSize:10,color:"#5a7a9a",marginBottom:6}}>
-            <strong style={{color:"#b0c4d8"}}>{dados.nome}</strong> · {dados.dataAval}
-            {dados.dataNasc ? ` · DN: ${dados.dataNasc}` : ""}
-          </div>
-          <div style={{fontSize:10,color:"#5a7a9a",marginBottom:8}}>
-            Escudo: <strong style={{color:"#00c6b8"}}>{ESCUDOS.find(e=>e.id===escudo)?.nome}</strong>
-            {lateral ? ` · Lateralidade: ${lateral}` : ""}
-            {vitais.length ? ` · Centros: ${vitais.map(id=>CENTROS_VITAIS.find(c=>c.id===id)?.nome).join(", ")}` : ""}
-          </div>
-          {dados.medicacao && <div className="al al-w" style={{fontSize:9,marginBottom:8}}>⚠️ Medicação: {dados.medicacao}</div>}
-          {sel.map(x=>{ const p=getPonto(x.id); return (
-            <div key={x.key} style={{marginBottom:9,paddingBottom:8,borderBottom:"1px solid #0d1828"}}>
-              <div style={{fontWeight:700,fontSize:11,color:"#b0c4d8"}}>{p?.nome} <span style={{color:"#2d4a66",fontWeight:400}}>· {x.lado} · {x.face}</span></div>
-              {p?.aspectos && <div style={{fontSize:10,color:"#5a7a9a",marginTop:2}}><strong>Ligado a:</strong> {p.aspectos}</div>}
-              {p?.sintomas && <div style={{fontSize:10,color:"#5a7a9a"}}><strong>Sinais no corpo:</strong> {p.sintomas}</div>}
-              {p?.frase && <div style={{fontSize:10,color:"#00c6b8",marginTop:2}}><strong>Pergunta ao paciente:</strong> {p.frase}</div>}
-            </div>
-          );})}
-          <div style={{fontSize:9,color:"#2d4a66"}}>Leitura de apoio à consciência do paciente. Não substitui avaliação médica.</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
-            <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>navigator.clipboard?.writeText(`Relatório — ${dados.nome} · ${dados.dataAval}\nEscudo: ${ESCUDOS.find(e=>e.id===escudo)?.nome}\n`+sel.map(x=>{const p=getPonto(x.id);return`\n${p?.nome} (${x.lado}/${x.face})\n• ${p?.aspectos}\n• Sinais: ${p?.sintomas}\n• Pergunta: ${p?.frase}`;}).join("\n"))}>Copiar</button>
-            <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={()=>gerarPDFConsulta({paciente:dados.nome,dataAval:dados.dataAval,dataNasc:dados.dataNasc,medicacao:dados.medicacao,tipo:tipoSel,escudoAtivo:escudo,lateralidade:lateral,pontos:sel,protocolo:res?.texto})}>🖨️ Gerar PDF Completo</button>
-            <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={guardar}>💾 Guardar na ficha</button>
-          </div>
-        </div>
-        <div className="card" style={{marginTop:10}}>
-          <div className="card-t">{res.titulo}</div>
-          <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:"#b0c4d8",fontFamily:"inherit",margin:0}}>{res.texto}</pre>
-          <button className="btn btn-s btn-sm" style={{width:"auto",marginTop:8}} onClick={()=>navigator.clipboard?.writeText(res.texto)}>Copiar protocolo</button>
-        </div>
-      </>}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════
-// NOVA CONSULTA — Selecção de tipo + lançar fluxo guiado
-// ══════════════════════════════════════════════════════
-
-// ══════════════════════════════════════════════════════════════════
 // MATRIX SELECTOR — Grelha estilo Google Forms (Mapeamento)
 // ══════════════════════════════════════════════════════════════════
 function MatrixSelector({ titulo, linhas, colunas, values, onChange }) {
@@ -2198,6 +1623,98 @@ function MatrixSelector({ titulo, linhas, colunas, values, onChange }) {
 // ══════════════════════════════════════════════════════════════════
 // GERADOR DE RELATÓRIO FIEL AO PROTOCOLO
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// PROTOCOLO DE CURA — gerado automaticamente por escudo + pontos
+// (4 fases, fiel ao método; editável pelo terapeuta)
+// ══════════════════════════════════════════════════════════════════
+const MEDITACAO_ESCUDO = {
+  "PERDA": "Visualize um lugar seguro e acolhedor, onde todas as suas experiências passadas são honradas e reconhecidas.",
+  "DESVALORIZAÇÃO": "Visualize um escudo de luz dourada a envolvê-lo. Este escudo representa a sua autoestima inabalável e o seu valor eterno.",
+  "SOBREVIVÊNCIA": "Visualize-se a construir um escudo de estabilidade e confiança a partir dos seus pés, subindo até ao coração. Este escudo é feito de paz e recursos infinitos.",
+  "DESPROTEÇÃO": "Visualize-se envolvido por um escudo de luz prateada. Esta luz é a sua proteção divina e a sua confiança interior.",
+  "IMPOTÊNCIA": "Visualize um escudo de fogo amarelo e vibrante no centro do seu ser (plexo solar). Este escudo representa o seu poder de escolha e a sua capacidade de ação.",
+};
+const AFIRM_PROTOCOLO_CURA = {
+  "PERDA": {
+    libertacao: "Eu libero todo sentimento de PERDA; falta; separação; abandono; insegurança; rejeição; insuficiência; apreensão; medo; incertezas, que estejam bloqueados no meu corpo. Eu libero todos os sentimentos negativos que não me ajudam a evoluir, fica em mim apenas o necessário para o meu aprendizado, o resto eu libero e solto em gratidão!",
+    cura: "Eu comando que todas as memórias e emoções dolorosas ligadas a essa separação/perda sejam curadas e transformadas em aprendizado e crescimento. Eu comando que todas as áreas afetadas do meu ser recebam a energia curativa do amor universal.",
+  },
+  "DESVALORIZAÇÃO": {
+    libertacao: "Eu libero todo sentimento de DESVALORIZAÇÃO; inferioridade; baixa estima; incompreensão; insegurança; rejeição; insuficiência; angústia; medo; incertezas, que estejam bloqueados no meu corpo. Eu libero todos os sentimentos negativos que não me ajudam a evoluir, fica em mim apenas o necessário para o meu aprendizado, o resto eu libero e solto em gratidão!",
+    cura: "Eu comando que todas as experiências de desvalorização sejam transformadas em força e confiança. Eu comando que minha autoestima seja restaurada e reforçada. Que assim seja.",
+  },
+  "SOBREVIVÊNCIA": {
+    libertacao: "Eu libero todo sentimento de SOBREVIVÊNCIA; escassez; sufoco; indignação; pressão, que estejam bloqueados no meu corpo. Eu libero todos os sentimentos negativos que não me ajudam a evoluir, fica em mim apenas o necessário para o meu aprendizado, o resto eu libero e solto em gratidão!",
+    cura: "Eu comando que todos os medos e ansiedades relacionados à minha sobrevivência sejam liberados gentilmente agora. Eu comando que meu ser seja preenchido com confiança, segurança e força. Que assim seja.",
+  },
+  "DESPROTEÇÃO": {
+    libertacao: "Eu libero todo sentimento de DESPROTEÇÃO; injustiça; insegurança; acusação; dúvida, que estejam bloqueados no meu corpo. Eu libero todos os sentimentos negativos que não me ajudam a evoluir, fica em mim apenas o necessário para o meu aprendizado, o resto eu libero e solto em gratidão!",
+    cura: "Eu comando que todas as experiências de desproteção sejam transformadas em força interior e segurança. Eu comando que minha sensação de proteção e bem-estar sejam restauradas e reforçadas. Que assim seja.",
+  },
+  "IMPOTÊNCIA": {
+    libertacao: "Eu libero todo sentimento de IMPOTÊNCIA; incapacidade; medo; insegurança; paralisia; pressão, que estejam bloqueados no meu corpo. Eu libero todos os sentimentos negativos que não me ajudam a evoluir, fica em mim apenas o necessário para o meu aprendizado, o resto eu libero e solto em gratidão!",
+    cura: "Eu comando que todos os sentimentos de impotência e incapacidade sejam liberados gentilmente. Eu comando que o nosso ser seja preenchido com poder, motivação e autossuficiência. Que assim seja.",
+  },
+};
+
+function gerarProtocoloCuraFases({ escudo, passagens }) {
+  const esc = (escudo || "").toUpperCase();
+  const med = MEDITACAO_ESCUDO[esc] || "Visualize um espaço de luz e segurança a envolver todo o seu ser.";
+  const afir = AFIRM_PROTOCOLO_CURA[esc] || { libertacao: "", cura: "" };
+
+  // Recolher todos os pontos detectados, separados por face
+  const pontosFrente = [];
+  const pontosCostas = [];
+  (passagens || []).forEach(p => {
+    const todos = [...(p.pv||[]), ...(p.pe||[]), ...(p.ss||[]), ...(p.sc||[]), ...(p.si||[])];
+    todos.forEach(pt => {
+      const entry = `${pt} (${p.lado})`;
+      if (p.lado && p.lado.includes("COSTAS")) pontosCostas.push(entry);
+      else pontosFrente.push(entry);
+    });
+  });
+
+  const L = [];
+  L.push(`PROTOCOLO DE CURA — PARA FAZER EM CASA`);
+  L.push(`Escudo de trabalho: ${esc || "—"}`);
+  L.push(``);
+  L.push(`▸ FASE 1 — Preparação e Meditação Guiada`);
+  L.push(`Bebe um copo de água. Coloca o áudio de tratamento enviado pelo terapeuta. Fecha os olhos, inspira profundamente e faz a visualização do teu escudo:`);
+  L.push(`"${med}"`);
+  L.push(``);
+  L.push(`▸ FASE 2 — Sequência nos Pontos Detectados`);
+  L.push(`Em cada ponto marcado, com uma mão de apoio fixa e a outra em pinça sobre o ponto:`);
+  L.push(`  1. Rodar 3 vezes sobre o ponto`);
+  L.push(`  2. Empurrar/deslizar 3 vezes`);
+  L.push(`  3. Bater 3 vezes sobre o ponto`);
+  if (pontosFrente.length) {
+    L.push(``);
+    L.push(`PONTOS NA FRENTE (mão de apoio na fronte/testa):`);
+    pontosFrente.forEach(p => L.push(`  • ${p}`));
+  }
+  if (pontosCostas.length) {
+    L.push(``);
+    L.push(`PONTOS NAS COSTAS:`);
+    L.push(`  - Pontos do sistema superior: apoio na nuca (osso mais saliente), um de cada vez`);
+    L.push(`  - Pontos do sistema central: apoio atrás no pescoço (osso saliente), um de cada vez`);
+    L.push(`  - Pontos do sistema inferior: no local exacto de cada perna`);
+    pontosCostas.forEach(p => L.push(`  • ${p}`));
+  }
+  L.push(``);
+  L.push(`▸ FASE 3 — Auto-Abraço e Afirmações de Cura`);
+  L.push(`Respira fundo, dá um auto-abraço e repete:`);
+  if (afir.libertacao) { L.push(`LIBERTAÇÃO:`); L.push(`"${afir.libertacao}"`); }
+  if (afir.cura)       { L.push(``); L.push(`CURA:`); L.push(`"${afir.cura}"`); }
+  L.push(``);
+  L.push(`▸ FASE 4 — Ativação e Selamento`);
+  L.push(`Bate no peito esquerdo 3 vezes para cada frase:`);
+  L.push(`  "Está feito" (bater 3x)`);
+  L.push(`  "Está feito" (bater 3x)`);
+  L.push(`  "Está feito" (bater 3x)`);
+  L.push(`  "Está selado" (bater 3x)`);
+  return L.join("\n");
+}
+
 function gerarRelatorioFiel(tipo, dados, pacienteNome) {
   const data = new Date().toLocaleDateString("pt-PT");
   const linhas = [];
@@ -2264,7 +1781,8 @@ function gerarRelatorioFiel(tipo, dados, pacienteNome) {
       if (quando?.texto) linhas.push(`  Tempo do conflito: ${quando.texto}.`);
     }
 
-    if (notas) linhas.push(`\nDEVOLUTIVA / PROTOCOLO DE CURA\n${notas}`);
+    if (notas) linhas.push(`\nDEVOLUTIVA\n${notas}`);
+    if (dados.protocolo) linhas.push(`\n${dados.protocolo}`);
   }
 
   if (tipo === "Atendimento Estruturado — Caminhos") {
@@ -2536,6 +2054,7 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
   const [escudo, setEscudo] = useState("");
   const [quando, setQuando] = useState({ trans:false, gestacao:false, apos:false, texto:"" });
   const [notas, setNotas] = useState("");
+  const [protocolo, setProtocolo] = useState("");
   const [guardado, setGuardado] = useState(false);
   const [load, setLoad] = useState(false);
   const [relatorio, setRelatorio] = useState("");
@@ -2559,7 +2078,7 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
     if (!escudo) { alert("Selecciona o ESCUDO MAIS ATIVO — é obrigatório."); return; }
     if (!quando.texto.trim() && !quando.trans && !quando.gestacao && !quando.apos) { alert("Preenche o QUANDO / IDADE — é obrigatório."); return; }
     const ultimoLado = passagens[passagens.length-1]?.lado || "";
-    const dados = { ficha: ficha?.nome, modo: ficha?.modo, face: ficha?.face, cab, passagens, escudo, escudoLado: ultimoLado, quando, notas };
+    const dados = { ficha: ficha?.nome, modo: ficha?.modo, face: ficha?.face, cab, passagens, escudo, escudoLado: ultimoLado, quando, notas, protocolo };
     const txt = gerarRelatorioFiel("Mapeamento Energético Vital", dados, paciente?.nome);
     setRelatorio(txt);
     setLoad(true);
@@ -2591,7 +2110,7 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
         <div style={{fontSize:14,fontWeight:700,color:"#b0c4d8",marginBottom:4}}>Mapeamento guardado na ficha de {paciente?.nome}!</div>
         <div style={{fontSize:10,color:"#3d5a7a"}}>Consulta o histórico em Pacientes → Consultas → Ver relatório.</div>
         <div style={{display:"flex",gap:8,marginTop:14}}>
-          <button className="btn btn-p" onClick={()=>{setFicha(null);setPassagens([]);setAtual(null);setEscudo("");setQuando({trans:false,gestacao:false,apos:false,texto:""});setNotas("");setGuardado(false);setRelatorio("");setEtapa("ficha");}}>Novo Mapeamento</button>
+          <button className="btn btn-p" onClick={()=>{setFicha(null);setPassagens([]);setAtual(null);setEscudo("");setQuando({trans:false,gestacao:false,apos:false,texto:""});setNotas("");setProtocolo("");setGuardado(false);setRelatorio("");setEtapa("ficha");}}>Novo Mapeamento</button>
           <button className="btn btn-s" onClick={onVoltar}>← Voltar</button>
         </div>
       </div>
@@ -2762,9 +2281,31 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
       </div>
 
       <div className="card" style={{marginBottom:10}}>
-        <div className="card-t">DEVOLUTIVA E PROTOCOLO DE CURA</div>
-        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:6}}>O que o corpo revelou + protocolo de cura para casa (áudio, pontos a trabalhar 7/15 dias).</div>
-        <textarea className="inp" rows={4} value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Correlação ponto → escudo → história · Protocolo de cura..." />
+        <div className="card-t">DEVOLUTIVA AO PACIENTE</div>
+        <div style={{fontSize:10,color:"#5a7a9a",marginBottom:6}}>O que o corpo revelou — correlação ponto → escudo → história emocional.</div>
+        <textarea className="inp" rows={3} value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Devolutiva com presença e sensibilidade..." />
+      </div>
+
+      {/* PROTOCOLO DE CURA — automático / editável / do zero */}
+      <div className="card" style={{marginBottom:10, opacity: escudo ? 1 : 0.5}}>
+        <div className="card-t">🏠 PROTOCOLO DE CURA — Trabalho em Casa</div>
+        {!escudo && <div style={{fontSize:10,color:"#f59e0b",marginBottom:8}}>↑ Escolhe o escudo para gerar o protocolo automaticamente.</div>}
+        <div style={{fontSize:10,color:"#5ae0d8",marginBottom:8,lineHeight:1.5}}>
+          Gera as 4 fases automaticamente com base no escudo e nos pontos detectados. Podes editar ou escrever do zero.
+        </div>
+        <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+          <button className="btn btn-p btn-sm" style={{width:"auto"}} disabled={!escudo}
+            onClick={()=>setProtocolo(gerarProtocoloCuraFases({ escudo, passagens }))}>
+            ⚡ Gerar automático (4 fases)
+          </button>
+          <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>setProtocolo("")}>
+            🗑️ Limpar / escrever do zero
+          </button>
+        </div>
+        <textarea className="inp" rows={protocolo ? 14 : 4} value={protocolo}
+          onChange={e=>setProtocolo(e.target.value)}
+          placeholder="Clica em 'Gerar automático' ou escreve aqui o teu próprio protocolo de cura..."
+          style={{fontFamily: protocolo ? "monospace" : "inherit", fontSize: protocolo ? 10 : 12}} />
       </div>
 
       <button className="btn btn-p" style={{padding:"12px 0",fontSize:13}} onClick={handleGuardar} disabled={load || passagens.length===0}>
@@ -2774,9 +2315,9 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
   );
 }
 
-function FormAtendimentoEstruturado({ paciente, user, onGuardar, onVoltar }) {
+function FormAtendimentoEstruturado({ paciente, user, caminhoInit, tituloConsulta, onGuardar, onVoltar }) {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ p1:"",p2:"",p3:"",p4:"",p5:"",p6:"", caminho:null, escudos:{}, estressores:{q1:"",q2:"",q3:"",q4:"",q5:""}, protocolo:"", monit_crises:"", monit_mudancas:"" });
+  const [form, setForm] = useState({ p1:"",p2:"",p3:"",p4:"",p5:"",p6:"", caminho:caminhoInit||null, escudos:{}, estressores:{q1:"",q2:"",q3:"",q4:"",q5:""}, protocolo:"", monit_crises:"", monit_mudancas:"" });
   const [guardado, setGuardado] = useState(false);
   const [relatorio, setRelatorio] = useState("");
   const [load, setLoad] = useState(false);
@@ -2930,11 +2471,14 @@ function NovaConsulta({ user, onIniciar }) {
       </div>
 
       {[
-        { id:"form_a", icon:"🩺", cor:"from-teal-600 to-teal-800", titulo:"A — 1º Atendimento", sub:"Consulta Única", desc:"Acolhimento → Dados Pessoais → 6 Perguntas do Poder → Indicação Terapêutica → Protocolo de Cura", tags:["1ª consulta","Paciente novo","Clareza e direcionamento"] },
-        { id:"form_b", icon:"🗺️", cor:"from-blue-600 to-blue-800", titulo:"B — Mapeamento Energético Vital", sub:"Mente Subconsciente", desc:"Grelha completa: Energia Vital → Zona de Impacto → Lateralidade → 3 Sistemas → Escudo Ativo → Tempo do Conflito", tags:["2ª consulta","Pack Sessão 2","Raiz do sintoma"] },
-        { id:"form_c", icon:"🧭", cor:"from-purple-600 to-purple-800", titulo:"C — Atendimento Estruturado", sub:"3 Caminhos Terapêuticos", desc:"Monitorização → 6 Perguntas → Caminho 1 (Escudos) ou Caminho 3 (Estressores) → Protocolo 7/15 dias", tags:["Seguimento","Pack Sessão 1 e 3","Estressores"] },
+        { id:"consulta_unica", form:"form_a", icon:"🩺", titulo:"Consulta Única", sub:"Atendimento único", desc:"Acolhimento → Dados Pessoais → 6 Perguntas do Poder → Indicação Terapêutica → Protocolo de Cura", tags:["1ª consulta","Paciente novo","Clareza e direcionamento"] },
+        { id:"pack_s1", form:"form_c", caminho:1, icon:"1️⃣", titulo:"Pack 3 Sessões — Sessão 1", sub:"Mente Consciente", desc:"Monitorização → 6 Perguntas → Pontuação dos Escudos (Caminho 1) → Protocolo 7 dias", tags:["Pack","Escudos","Base emocional"] },
+        { id:"pack_s2", form:"form_b", icon:"2️⃣", titulo:"Pack 3 Sessões — Sessão 2", sub:"Mapeamento Energético", desc:"Grelha completa: Energia Vital → Zona de Impacto → Lateralidade → 3 Sistemas → Escudo → Tempo → Protocolo de Cura", tags:["Pack","Mapeamento","Raiz do sintoma"] },
+        { id:"pack_s3", form:"form_c", caminho:1, icon:"3️⃣", titulo:"Pack 3 Sessões — Sessão 3", sub:"Consolidação", desc:"Revisão → Ferramentas práticas → Checklists e autocuidado → Protocolo de encerramento", tags:["Pack","Consolidação","Autocuidado"] },
+        { id:"seguimento", form:"form_c", caminho:3, icon:"🔄", titulo:"Seguimento / Manutenção", sub:"Estressores Ativos", desc:"Monitorização → 6 Perguntas → Estressores e Gatilhos (Caminho 3) → Protocolo de manutenção", tags:["Seguimento","Estressores","Sintomas recorrentes"] },
+        { id:"mapeamento_avulso", form:"form_b", icon:"🗺️", titulo:"Mapeamento Avulso", sub:"Mapeamento independente", desc:"Mapeamento Energético completo fora do pack — para aceder à raiz profunda do sintoma a qualquer momento", tags:["Avulso","Mapeamento"] },
       ].map(t=>(
-        <div key={t.id} onClick={()=>onIniciar&&onIniciar(t.id)}
+        <div key={t.id} onClick={()=>onIniciar&&onIniciar(t.form, t.caminho, t.titulo)}
           style={{cursor:"pointer",padding:"16px 18px",marginBottom:10,borderRadius:12,border:"1px solid #0d1828",background:"#050810",transition:"all .2s"}}
           onMouseEnter={e=>{e.currentTarget.style.borderColor="#1a4a6c";e.currentTarget.style.background="#07101c"}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor="#0d1828";e.currentTarget.style.background="#050810"}}>
@@ -2964,6 +2508,8 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
   const [aba, setAba] = useState(initAba || "consulta");
   const [qForm, setQForm] = useState(null);
   const [formAtivo, setFormAtivo] = useState(null); // "form_a" | "form_b" | "form_c"
+  const [caminhoInit, setCaminhoInit] = useState(null); // caminho pré-seleccionado para form_c
+  const [tituloConsulta, setTituloConsulta] = useState(""); // nome do tipo de consulta escolhido
   const [pacSel, setPacSel] = useState(null); // paciente seleccionado para a consulta
   const [pacs, setPacs] = useState([]);
   const [busca, setBusca] = useState("");
@@ -2979,9 +2525,11 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
     }
   }, [user]);
 
-  // Quando o terapeuta escolhe o tipo de formulário, primeiro selecciona o paciente
-  const handleIniciar = (tipoForm) => {
+  // Quando o terapeuta escolhe o tipo de consulta, primeiro selecciona o paciente
+  const handleIniciar = (tipoForm, caminho, titulo) => {
     setFormAtivo(tipoForm);
+    setCaminhoInit(caminho || null);
+    setTituloConsulta(titulo || "");
     setAba("consulta_ativa");
   };
 
@@ -3074,7 +2622,7 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
           <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
             <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={voltarMenu}>← Voltar</button>
             <div style={{fontWeight:700,color:"#dde4f0",fontSize:13}}>
-              {formAtivo==="form_a"?"🩺 1º Atendimento":formAtivo==="form_b"?"🗺️ Mapeamento Energético Vital":"🧭 Atendimento Estruturado"}
+              {tituloConsulta || (formAtivo==="form_a"?"🩺 1º Atendimento":formAtivo==="form_b"?"🗺️ Mapeamento Energético Vital":"🧭 Atendimento Estruturado")}
             </div>
           </div>
           <div className="card-t">Selecciona o paciente</div>
@@ -3120,14 +2668,14 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
         <>
           {formAtivo==="form_a" && <FormPrimeiroAtendimento paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
           {formAtivo==="form_b" && <FormMapeamentoGrelha     paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
-          {formAtivo==="form_c" && <FormAtendimentoEstruturado paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
+          {formAtivo==="form_c" && <FormAtendimentoEstruturado paciente={pacSel} user={user} caminhoInit={caminhoInit} tituloConsulta={tituloConsulta} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
         </>
       )}
 
       {aba==="questionario" && <Questionario user={user} initForm={qForm} />}
       {aba==="assistente"   && <Assistente user={user} />}
       {aba==="farmacia"     && <Farmacia adminMode={adminMode} />}
-      {aba==="infanto"      && <Infanto adminMode={adminMode} ir={(ab,fk)=>{ if(fk) setQForm(fk); setAba(ab); }} />}
+      {aba==="infanto"      && <Infanto adminMode={adminMode} ir={(ab,fk)=>{ setFormAtivo(null); setPacSel(null); if(fk) setQForm(fk); setAba(ab); }} />}
       {aba==="audios"       && <ModuloAudios />}
     </div>
   );
@@ -3902,7 +3450,7 @@ function Infanto({ adminMode, ir }) {
                 </button>
               )}
               {faixaActiva.questionarios.map(qKey => {
-                const f = getAllForms ? getAllForms().find(x => x.key === qKey) : FORMS_DEF.find(x => x.key === qKey);
+                const f = getAllForms().find(x => x.key === qKey);
                 return f ? (
                   <button key={qKey} className="btn btn-s" style={{ flex: 1, minWidth: 140 }}
                     onClick={() => ir && ir("questionario", qKey)}>
@@ -3910,6 +3458,9 @@ function Infanto({ adminMode, ir }) {
                   </button>
                 ) : null;
               })}
+            </div>
+            <div style={{ fontSize: 9, color: "#2d4a66", marginTop: 8, lineHeight: 1.5 }}>
+              💡 "Iniciar Consulta" abre o menu de tipos de atendimento. Para crianças, começa pelas fichas (Pais, Anamnese) para recolher o contexto antes da sessão.
             </div>
           </div>
 
@@ -4076,23 +3627,76 @@ function Assistente({ user }) {
 function ModuloAudios() {
   const [audios, setAudios] = useState([]);
   const [copied, setCopied] = useState("");
+  const [cat, setCat] = useState("todos");
+
+  // Categorias fixas (as 4 bibliotecas) + ícones
+  const CATEGORIAS = [
+    { id: "todos", nome: "Todos", icon: "📚" },
+    { id: "tratamento", nome: "Tratamento", icon: "🎧" },
+    { id: "medos", nome: "Medos", icon: "😨" },
+    { id: "meditacao", nome: "Meditação 21 dias", icon: "🧘" },
+    { id: "escudos", nome: "Modulação Escudos", icon: "🛡️" },
+  ];
+
+  // Bibliotecas pré-carregadas (pastas do Drive) — sempre disponíveis
+  const BIBLIOTECAS = [
+    { id: "lib_trat", nome: "🎧 Áudios de Tratamento", descricao: "Pasta completa de áudios de tratamento para enviar ao paciente.", tipo: "tratamento", link_drive: "https://drive.google.com/drive/folders/1Q6s8dZcj74o5TVHQjZ1oLyrRy4ZPXgxh", pasta: true },
+    { id: "lib_medos", nome: "😨 Áudios dos Medos", descricao: "Áudios específicos para trabalhar cada medo identificado.", tipo: "medos", link_drive: "https://drive.google.com/drive/folders/1LafUmx9FP4U10wcLhxFtnTn4CDCXD00i", pasta: true },
+    { id: "lib_med_h", nome: "🧘 Meditação 21 Dias — Homem", descricao: "Programa de meditação de 21 dias (versão masculina).", tipo: "meditacao", link_drive: "https://drive.google.com/drive/folders/1GMolBdq_dp4rAOj3ErOYGVlOlAEVCatr", pasta: true },
+    { id: "lib_med_m", nome: "🧘 Meditação 21 Dias — Mulher", descricao: "Programa de meditação de 21 dias (versão feminina).", tipo: "meditacao", link_drive: "https://drive.google.com/drive/folders/1GMolBdq_dp4rAOj3ErOYGVlOlAEVCatr", pasta: true },
+    { id: "lib_escudos", nome: "🛡️ Modulação dos Escudos", descricao: "Áudios de modulação para cada escudo emocional (Desproteção, Desvalorização, Impotência, Sobrevivência, Perda).", tipo: "escudos", link_drive: "https://drive.google.com/drive/folders/19RwkwJx0H8e_Wkgg5R7788FaoPNcAd8H", pasta: true },
+  ];
+
   useEffect(() => { sb.from("audios").select("*").eq("ativo", true).order("ordem").then(({ data }) => { if (data) setAudios(data); }); }, []);
-  if (!audios.length) return <div className="al al-i">Sem audios disponiveis. O administrador ira adicionar em breve.</div>;
+
+  // Juntar bibliotecas fixas + áudios individuais do admin
+  const todos = [...BIBLIOTECAS, ...audios];
+  const filtrados = cat === "todos" ? todos : todos.filter(a => (a.tipo || "tratamento") === cat);
+
+  const enviarWhatsApp = (a) => {
+    const txt = `${a.nome}\n${a.descricao || ""}\n${a.link_drive}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
+  };
+
   return (
     <div className="fade">
+      {/* Filtro por categoria */}
       <div className="card">
-        <div className="card-t">Biblioteca de Audios</div>
-        {audios.map((a, i) => (
-          <div key={i} style={{background:"#050810",border:"1px solid #0d1828",borderRadius:8,padding:11,marginBottom:7}}>
-            <div style={{fontWeight:600,fontSize:12,color:"#b0c4d8",marginBottom:3}}>{a.nome}</div>
-            {a.descricao && <div style={{fontSize:10,color:"#3d5a7a",marginBottom:6}}>{a.descricao}</div>}
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {a.link_drive && <a href={a.link_drive} target="_blank" rel="noopener noreferrer" className="btn btn-p btn-sm" style={{width:"auto",textDecoration:"none"}}>Ouvir / Descarregar</a>}
-              {a.link_drive && <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={() => { navigator.clipboard.writeText(a.link_drive); setCopied(a.nome); setTimeout(() => setCopied(""), 2000); }}>{copied === a.nome ? "Copiado" : "Copiar link"}</button>}
-              {a.link_drive && <button className="btn btn-sm" style={{background:"#25D36618",border:"1px solid #25D36640",color:"#25D366",width:"auto"}} onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(a.nome + "\n" + a.link_drive)}`)}>WhatsApp</button>}
+        <div className="card-t">🎧 Biblioteca de Áudios Terapêuticos</div>
+        <div style={{ fontSize: 10, color: "#5a7a9a", marginBottom: 10, lineHeight: 1.5 }}>
+          Escolhe o áudio e envia ao paciente por WhatsApp ou copia o link. O paciente abre no Drive e ouve.
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {CATEGORIAS.map(c => (
+            <button key={c.id} className={`chip ${cat === c.id ? "on" : ""}`}
+              onClick={() => setCat(c.id)} style={{ fontSize: 11 }}>
+              {c.icon} {c.nome}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista de áudios/bibliotecas */}
+      <div className="card">
+        {filtrados.length === 0 && <div className="al al-i">Sem áudios nesta categoria.</div>}
+        {filtrados.map((a, i) => (
+          <div key={a.id || i} style={{ background: "#050810", border: "1px solid #0d1828", borderRadius: 8, padding: 11, marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              {a.pasta && <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 8, background: "#0d2535", color: "#00c6b8", fontWeight: 600 }}>PASTA</span>}
+              <div style={{ fontWeight: 600, fontSize: 12, color: "#b0c4d8" }}>{a.nome}</div>
+            </div>
+            {a.descricao && <div style={{ fontSize: 10, color: "#3d5a7a", marginBottom: 7, lineHeight: 1.5 }}>{a.descricao}</div>}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {a.link_drive && <a href={a.link_drive} target="_blank" rel="noopener noreferrer" className="btn btn-p btn-sm" style={{ width: "auto", textDecoration: "none" }}>{a.pasta ? "Abrir pasta" : "Ouvir"}</a>}
+              {a.link_drive && <button className="btn btn-s btn-sm" style={{ width: "auto" }} onClick={() => { navigator.clipboard.writeText(a.link_drive); setCopied(a.id || a.nome); setTimeout(() => setCopied(""), 2000); }}>{copied === (a.id || a.nome) ? "✓ Copiado" : "Copiar link"}</button>}
+              {a.link_drive && <button className="btn btn-sm" style={{ background: "#25D36618", border: "1px solid #25D36640", color: "#25D366", width: "auto" }} onClick={() => enviarWhatsApp(a)}>WhatsApp</button>}
             </div>
           </div>
         ))}
+      </div>
+
+      <div style={{ fontSize: 9, color: "#2d4a66", textAlign: "center", padding: "4px 0", lineHeight: 1.5 }}>
+        ⚠️ As pastas do Drive devem estar partilhadas como "Qualquer pessoa com o link pode ver" para o paciente conseguir abrir.
       </div>
     </div>
   );
