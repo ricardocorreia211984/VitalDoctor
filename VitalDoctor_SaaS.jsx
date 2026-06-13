@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PONTOS_POR_SISTEMA, PONTOS, getPonto, CENTROS_VITAIS, PONTOS_ENTRADA } from "./mapaCorporal.js";
 import { ESCUDOS, QUESTIONARIO_ESCUDOS, ESCALA_QUESTIONARIO, PERGUNTAS_ABERTURA, CAMINHOS, PROTOCOLO } from "./baseConhecimento.js";
-import { MAPEAMENTO_PASSOS, TIPOS_ATENDIMENTO, passosDoTipo, MONITORIZACAO } from "./atendimento.js";
 import { gerarProtocoloCura, AFIRMACOES_ESCUDO } from "./protocoloCura.js";
 import { pontuarEscudos } from "./gerarRelatorio.js";
 import { AVISO_SAUDE, jaAceitou, registarAceite } from "./responsabilidade.js";
