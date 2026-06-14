@@ -174,51 +174,55 @@ const MONITORIZACAO_LOCAL = PERGUNTAS_MONITORIZACAO;
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+@media(min-width:769px){html{font-size:17px}}
+@media(min-width:1100px){html{font-size:18px}}
+@media(min-width:1500px){html{font-size:20px}}
 html,body,#root{height:100%;background:#07090f;color:#dde4f0;font-family:'DM Sans',sans-serif}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#1a2840;border-radius:3px}
 .fade{animation:fd .3s ease}
 @keyframes fd{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .app{display:flex;height:100vh;overflow:hidden}
-.sb{width:210px;background:#0a0e18;border-right:1px solid #0d1828;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sb{width:13.5rem;background:#0a0e18;border-right:1px solid #0d1828;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 .sb-logo{padding:16px 14px 10px;border-bottom:1px solid #0d1828}
-.sb-logo-t{font-family:'Cormorant Garamond',serif;font-size:16px;letter-spacing:3px;background:linear-gradient(135deg,#00c6b8,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.sb-logo-v{font-size:8px;color:#1a2840;letter-spacing:1px}
+.sb-logo-t{font-family:'Cormorant Garamond',serif;font-size:1.05rem;letter-spacing:3px;background:linear-gradient(135deg,#00c6b8,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sb-logo-v{font-size:.55rem;color:#1a2840;letter-spacing:1px}
 .sb-user{padding:10px 14px;border-bottom:1px solid #0d1828}
-.sb-user-n{font-size:12px;font-weight:600;color:#b0c4d8}
-.sb-user-p{font-size:9px;color:#2d4a66;margin-top:1px}
+.sb-user-n{font-size:.8rem;font-weight:600;color:#b0c4d8}
+.sb-user-p{font-size:.62rem;color:#2d4a66;margin-top:1px}
 .sb-nav{flex:1;padding:5px 0}
-.sb-sec{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#131e2e;padding:10px 14px 3px}
-.sb-item{display:flex;align-items:center;gap:7px;padding:8px 14px;cursor:pointer;transition:all .15s;font-size:11px;color:#2d4a66;border-left:2px solid transparent}
+.sb-sec{font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:#131e2e;padding:10px 14px 3px}
+.sb-item{display:flex;align-items:center;gap:7px;padding:9px 14px;cursor:pointer;transition:all .15s;font-size:.78rem;color:#5a7a9a;border-left:2px solid transparent}
 .sb-item:hover{background:rgba(0,198,184,.04);color:#5ae0d8}
 .sb-item.on{background:rgba(0,198,184,.06);color:#00c6b8;border-left-color:#00c6b8}
-.sb-item-i{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.sb-item-i{font-size:.95rem;width:16px;text-align:center;flex-shrink:0}
 .sb-foot{padding:10px 14px;border-top:1px solid #0d1828;display:flex;flex-direction:column;gap:5px}
-.sb-btn{width:100%;padding:6px;background:transparent;border:1px solid #0d1828;border-radius:5px;color:#2d4a66;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;text-align:center}
+.sb-btn{width:100%;padding:7px;background:transparent;border:1px solid #0d1828;border-radius:5px;color:#3d5a7a;font-size:.68rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;text-align:center}
 .sb-btn:hover{border-color:#ef4444;color:#ef4444}
 .main{flex:1;overflow-y:auto}
 .main-hdr{padding:12px 18px;border-bottom:1px solid #0d1828;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#07090f;z-index:20}
-.main-title{font-family:'Cormorant Garamond',serif;font-size:17px;color:#dde4f0}
-.main-body{padding:14px 18px;max-width:860px}
+.main-title{font-family:'Cormorant Garamond',serif;font-size:1.25rem;color:#dde4f0}
+.main-body{padding:18px 22px;max-width:1100px;margin:0 auto;width:100%}
 .mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#0a0e18;border-top:1px solid #0d1828;z-index:100}
 .mob-inner{display:flex;overflow-x:auto;scrollbar-width:none}
 .mob-inner::-webkit-scrollbar{display:none}
-.mob-btn{flex:1;min-width:54px;padding:7px 3px 5px;border:none;background:transparent;color:#2d4a66;font-size:8px;text-transform:uppercase;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'DM Sans',sans-serif;transition:color .2s}
+.mob-btn{flex:1;min-width:54px;padding:7px 3px 5px;border:none;background:transparent;color:#2d4a66;font-size:.5rem;text-transform:uppercase;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'DM Sans',sans-serif;transition:color .2s}
 .mob-btn.on{color:#00c6b8}
-.mob-icon{font-size:16px}
-@media(max-width:768px){.sb{display:none}.mob-nav{display:block}.main{padding-bottom:60px}.main-body{padding:10px 10px}}
-.card{background:#0a0e18;border:1px solid #0d1828;border-radius:10px;padding:14px;margin-bottom:10px}
-.card-t{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#00c6b8;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.mob-icon{font-size:1rem}
+@media(max-width:768px){.sb{display:none}.mob-nav{display:block}.main{padding-bottom:60px}.main-body{padding:12px 12px}}
+.card{background:#0a0e18;border:1px solid #0d1828;border-radius:10px;padding:1rem;margin-bottom:.7rem}
+.card-t{font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:#00c6b8;margin-bottom:10px;display:flex;align-items:center;gap:5px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 @media(max-width:500px){.g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}}
-.inp{width:100%;background:#050810;border:1px solid #0d1828;border-radius:6px;padding:8px 10px;color:#dde4f0;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;transition:border-color .2s;resize:vertical}
+.inp{width:100%;background:#050810;border:1px solid #0d1828;border-radius:6px;padding:9px 11px;color:#dde4f0;font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:border-color .2s;resize:vertical}
 .inp:focus{border-color:#00c6b8}
 .inp::placeholder{color:#1a2840}
-.lbl{font-size:9px;color:#2d4a66;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:block}
+.lbl{font-size:.62rem;color:#3d5a7a;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:block}
 .sel{appearance:none;cursor:pointer}
 .mb8{margin-bottom:8px}.mb12{margin-bottom:12px}
-.slbl{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#1a2840;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #0d1828}
-.btn{border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;padding:8px 14px}
+.slbl{font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:#1a2840;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #0d1828}
+.btn{border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;padding:9px 15px}
 .btn-p{background:linear-gradient(135deg,#00c6b8,#009e92);color:#050810;width:100%}
 .btn-p:hover{opacity:.9}
 .btn-p:disabled{opacity:.5;cursor:not-allowed}
@@ -226,16 +230,16 @@ html,body,#root{height:100%;background:#07090f;color:#dde4f0;font-family:'DM San
 .btn-s{background:#0a0e18;border:1px solid #0d1828;color:#3d5a7a;width:100%}
 .btn-s:hover{border-color:#00c6b8;color:#00c6b8}
 .btn-d{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
-.btn-sm{padding:5px 10px;font-size:10px;width:auto}
+.btn-sm{padding:6px 11px;font-size:.7rem;width:auto}
 .btn-row{display:flex;gap:7px;margin-top:10px}
 .btn-row .btn{flex:1;margin:0}
-.al{padding:8px 11px;border-radius:6px;border-left:3px solid;margin-bottom:7px;font-size:11px;line-height:1.6}
+.al{padding:9px 12px;border-radius:6px;border-left:3px solid;margin-bottom:7px;font-size:.78rem;line-height:1.6}
 .al-i{background:rgba(0,198,184,.05);border-color:#00c6b8;color:#5ae0d8}
 .al-w{background:rgba(251,191,36,.05);border-color:#fbbf24;color:#fde68a}
 .al-d{background:rgba(239,68,68,.06);border-color:#ef4444;color:#fca5a5}
 .al-ok{background:rgba(16,185,129,.05);border-color:#10b981;color:#6ee7b7}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
-.chip{padding:3px 9px;border-radius:12px;border:1px solid #0d1828;background:#050810;font-size:10px;cursor:pointer;transition:all .13s;color:#2d4a66;user-select:none}
+.chip{padding:5px 11px;border-radius:12px;border:1px solid #0d1828;background:#050810;font-size:.72rem;cursor:pointer;transition:all .13s;color:#5a7a9a;user-select:none}
 .chip:hover{border-color:#00c6b8;color:#00c6b8}
 .chip.on{background:#003d39;border-color:#00c6b8;color:#00c6b8}
 .prog{height:2px;background:#0d1828;border-radius:2px;margin:8px 0}
@@ -493,6 +497,8 @@ function Pacientes({ user, pacs, setPacs }) {
   const [materiais, setMateriais] = useState([]);
   const [novoMat, setNovoMat] = useState({ nome:"", url:"" });
   const [sala, setSala] = useState("");
+  const [editando, setEditando] = useState(false);
+  const [editForm, setEditForm] = useState({});
   const fotoRef = useRef(null);
   const upMatRef = useRef(null);
 
@@ -510,7 +516,7 @@ function Pacientes({ user, pacs, setPacs }) {
   };
 
   const abrirPac = async (p) => {
-    setSel(p); setTab("info");
+    setSel(p); setTab("info"); setEditando(false);
     setSala(`https://meet.jit.si/VitalDoctor-${p.id}`);
     const { data: cs } = await sb.from("consultas").select("*").eq("paciente_id", p.id).order("data", { ascending: false });
     const { data: pg } = await sb.from("pagamentos").select("*").eq("paciente_id", p.id).order("data", { ascending: false });
@@ -518,6 +524,40 @@ function Pacientes({ user, pacs, setPacs }) {
     setConsultas(cs || []);
     setPagamentos(pg || []);
     setMateriais(mt || []);
+  };
+
+  const iniciarEdicao = () => {
+    setEditForm({
+      nome: sel.nome || "", data_nasc: sel.data_nasc || "", email: sel.email || "",
+      telefone: sel.telefone || "", genero: sel.genero || "feminino",
+      forma_pag: sel.forma_pag || "MBWay", medicacao: sel.medicacao || "", alergias: sel.alergias || "",
+    });
+    setEditando(true);
+  };
+
+  const guardarEdicao = async () => {
+    setLoad(true);
+    const { error } = await sb.from("pacientes").update(editForm).eq("id", sel.id).eq("terapeuta_id", user.id);
+    setLoad(false);
+    if (error) { alert("Erro ao guardar: " + error.message); return; }
+    const atualizado = { ...sel, ...editForm };
+    setSel(atualizado);
+    setPacs(pacs.map(p => p.id === sel.id ? atualizado : p));
+    setEditando(false);
+  };
+
+  const apagarPaciente = async () => {
+    if (!confirm(`Apagar o paciente "${sel.nome}"?\n\nIsto remove o paciente e os seus dados. Esta ação não pode ser desfeita.`)) return;
+    setLoad(true);
+    // Apagar dados associados primeiro (isolamento por terapeuta)
+    await sb.from("consultas").delete().eq("paciente_id", sel.id).eq("terapeuta_id", user.id);
+    await sb.from("pagamentos").delete().eq("paciente_id", sel.id).eq("terapeuta_id", user.id);
+    await sb.from("materiais").delete().eq("paciente_id", sel.id);
+    const { error } = await sb.from("pacientes").delete().eq("id", sel.id).eq("terapeuta_id", user.id);
+    setLoad(false);
+    if (error) { alert("Erro ao apagar: " + error.message); return; }
+    setPacs(pacs.filter(p => p.id !== sel.id));
+    setSel(null); setVista("lista");
   };
 
   const addConsulta = async () => {
@@ -637,12 +677,44 @@ function Pacientes({ user, pacs, setPacs }) {
             <button key={k} className={`chip ${tab === k ? "on" : ""}`} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
-        {tab === "info" && (
-          <div style={{fontSize:11,color:"#7a8fa8",lineHeight:1.8}}>
-            {sel.data_nasc && <div><span style={{color:"#2d4a66"}}>Nascimento:</span> {fmtData(sel.data_nasc)}</div>}
-            {sel.forma_pag && <div><span style={{color:"#2d4a66"}}>Pagamento:</span> {sel.forma_pag}</div>}
-            {sel.medicacao && <div><span style={{color:"#2d4a66"}}>Medicacao:</span> {sel.medicacao}</div>}
-            {sel.alergias && <div><span style={{color:"#2d4a66"}}>Alergias:</span> {sel.alergias}</div>}
+        {tab === "info" && !editando && (
+          <div>
+            <div style={{fontSize:11,color:"#7a8fa8",lineHeight:1.8}}>
+              {sel.data_nasc && <div><span style={{color:"#2d4a66"}}>Nascimento:</span> {fmtData(sel.data_nasc)}</div>}
+              {sel.email && <div><span style={{color:"#2d4a66"}}>Email:</span> {sel.email}</div>}
+              {sel.telefone && <div><span style={{color:"#2d4a66"}}>Telefone:</span> {sel.telefone}</div>}
+              {sel.forma_pag && <div><span style={{color:"#2d4a66"}}>Pagamento:</span> {sel.forma_pag}</div>}
+              {sel.medicacao && <div><span style={{color:"#2d4a66"}}>Medicação:</span> {sel.medicacao}</div>}
+              {sel.alergias && <div><span style={{color:"#2d4a66"}}>Alergias:</span> {sel.alergias}</div>}
+            </div>
+            <div style={{display:"flex",gap:7,marginTop:14}}>
+              <button className="btn btn-s btn-sm" style={{flex:1}} onClick={iniciarEdicao}>✏️ Editar dados</button>
+              <button className="btn btn-d btn-sm" style={{flex:1}} onClick={apagarPaciente} disabled={load}>🗑️ Apagar paciente</button>
+            </div>
+          </div>
+        )}
+        {tab === "info" && editando && (
+          <div className="fade">
+            <div className="lbl">Nome completo</div>
+            <input className="inp" value={editForm.nome} onChange={e=>setEditForm({...editForm,nome:e.target.value})} />
+            <div className="g2">
+              <div><span className="lbl">Nascimento</span><input className="inp" type="date" value={editForm.data_nasc} onChange={e=>setEditForm({...editForm,data_nasc:e.target.value})} /></div>
+              <div><span className="lbl">Género</span><select className="inp sel" value={editForm.genero} onChange={e=>setEditForm({...editForm,genero:e.target.value})}><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="outro">Outro</option></select></div>
+            </div>
+            <div className="g2">
+              <div><span className="lbl">Email</span><input className="inp" value={editForm.email} onChange={e=>setEditForm({...editForm,email:e.target.value})} /></div>
+              <div><span className="lbl">Telefone</span><input className="inp" value={editForm.telefone} onChange={e=>setEditForm({...editForm,telefone:e.target.value})} /></div>
+            </div>
+            <div className="lbl">Forma de pagamento habitual</div>
+            <select className="inp sel" value={editForm.forma_pag} onChange={e=>setEditForm({...editForm,forma_pag:e.target.value})}><option>MBWay</option><option>Transferência</option><option>Numerário</option><option>Multibanco</option></select>
+            <div className="lbl">Medicação</div>
+            <textarea className="inp" rows={2} value={editForm.medicacao} onChange={e=>setEditForm({...editForm,medicacao:e.target.value})} />
+            <div className="lbl">Alergias</div>
+            <input className="inp" value={editForm.alergias} onChange={e=>setEditForm({...editForm,alergias:e.target.value})} />
+            <div style={{display:"flex",gap:7,marginTop:12}}>
+              <button className="btn btn-p" style={{flex:2}} onClick={guardarEdicao} disabled={load}>{load?"A guardar...":"💾 Guardar alterações"}</button>
+              <button className="btn btn-s" style={{flex:1}} onClick={()=>setEditando(false)}>Cancelar</button>
+            </div>
           </div>
         )}
         {tab === "consultas" && (
@@ -1424,6 +1496,13 @@ export default function VitalDoctor() {
   const [mod, setMod] = useState("dashboard");
   const [metodoTab, setMetodoTab] = useState(null);
   const [mostrarTermos, setMostrarTermos] = useState(false);
+  const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
   const navegar = (m, aba) => { setMetodoTab(aba || null); setMod(m); };
   const [pacs, setPacs] = useState([]);
   const [agenda, setAgenda] = useState([]);
@@ -1512,6 +1591,7 @@ export default function VitalDoctor() {
   return (
     <>
       <style>{CSS}</style>
+      {!online && <div style={{position:"fixed",top:0,left:0,right:0,zIndex:9998,background:"#7a3a00",color:"#ffd9a0",fontSize:11,textAlign:"center",padding:"5px 10px"}}>📡 Sem ligação à internet — a ver dados guardados. As alterações serão gravadas quando voltar a ligação.</div>}
       {mostrarTermos && user && <TermosModal onAceitar={() => {
         registarAceiteTermos(user.id);
         setMostrarTermos(false);

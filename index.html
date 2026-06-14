@@ -2,11 +2,22 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#050810" />
+    <meta name="description" content="VitalDoctor — gestão clínica para terapeutas" />
+    <link rel="manifest" href="/manifest.json" />
     <title>VitalDoctor</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/main.jsx"></script>
+    <script>
+      // Registar service worker para funcionamento offline e instalação
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
