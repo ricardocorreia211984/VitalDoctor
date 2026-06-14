@@ -236,6 +236,7 @@ html,body,#root{height:100%;background:#07090f;color:#dde4f0;font-family:'DM San
 .al{padding:9px 12px;border-radius:6px;border-left:3px solid;margin-bottom:7px;font-size:.78rem;line-height:1.6}
 .al-i{background:rgba(0,198,184,.05);border-color:#00c6b8;color:#5ae0d8}
 .al-w{background:rgba(251,191,36,.05);border-color:#fbbf24;color:#fde68a}
+.al-s{background:rgba(74,222,128,.06);border-left:3px solid #4ade80;color:#86efac;padding:8px 11px;border-radius:6px;margin-bottom:7px;font-size:.78rem}
 .al-d{background:rgba(239,68,68,.06);border-color:#ef4444;color:#fca5a5}
 .al-ok{background:rgba(16,185,129,.05);border-color:#10b981;color:#6ee7b7}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
@@ -1319,6 +1320,231 @@ function FormBuilder() {
   );
 }
 
+function Suporte({ user, isSuperAdmin }) {
+  const TELEGRAM = "https://t.me/+rOkqo8Orr-NhOTVk";
+  const EMAIL = "suportevitaldoctor@gmail.com";
+  const [tipo, setTipo] = useState("duvida");
+  const [assunto, setAssunto] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [anexo, setAnexo] = useState("");
+  const [enviado, setEnviado] = useState(false);
+  const [load, setLoad] = useState(false);
+  const [err, setErr] = useState("");
+  const [avisos, setAvisos] = useState([]);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    sb.from("avisos").select("*").eq("ativo", true).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setAvisos(data); }).catch(() => {});
+  }, []);
+
+  const anexarFoto = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) { setErr("Imagem demasiado grande (máx 2MB)."); return; }
+    const r = new FileReader();
+    r.onload = () => setAnexo(r.result);
+    r.readAsDataURL(f);
+  };
+
+  const enviar = async () => {
+    setErr("");
+    if (!mensagem.trim() && tipo !== "comprovativo") { setErr("Escreve a tua mensagem."); return; }
+    if (tipo === "comprovativo" && !anexo) { setErr("Anexa o comprovativo."); return; }
+    setLoad(true);
+    const { error } = await sb.from("mensagens").insert({
+      user_id: user.id, nome: user.nome || "", email: user.email || "",
+      tipo, assunto: assunto || (tipo === "comprovativo" ? "Comprovativo de pagamento" : "Dúvida"),
+      mensagem, anexo, estado: "novo",
+    });
+    setLoad(false);
+    if (error) { setErr("Erro ao enviar: " + error.message); return; }
+    setEnviado(true);
+    setAssunto(""); setMensagem(""); setAnexo("");
+  };
+
+  // Se for super admin, mostra a caixa de entrada (gestão)
+  if (isSuperAdmin) return <SuporteAdmin />;
+
+  const AVISO_COR = { info:"#1a4a5c", premium:"#7a4a00", manutencao:"#5c1a1a" };
+  const AVISO_ICON = { info:"ℹ️", premium:"⭐", manutencao:"🔧" };
+
+  return (
+    <div className="fade">
+      {/* Avisos do admin */}
+      {avisos.map(a => (
+        <div key={a.id} style={{background:AVISO_COR[a.tipo]||"#1a4a5c",borderRadius:8,padding:"11px 13px",marginBottom:8}}>
+          <div style={{fontSize:".78rem",fontWeight:700,color:"#fff",marginBottom:3}}>{AVISO_ICON[a.tipo]||"ℹ️"} {a.titulo}</div>
+          <div style={{fontSize:".72rem",color:"#dde4f0",lineHeight:1.5}}>{a.corpo}</div>
+        </div>
+      ))}
+
+      {/* Contactos directos */}
+      <div className="card">
+        <div className="card-t">💬 Falar com o Suporte</div>
+        <div style={{fontSize:".72rem",color:"#5a7a9a",marginBottom:10,lineHeight:1.5}}>
+          Tira as tuas dúvidas connosco. Resposta gratuita pelos canais abaixo ou pela mensagem direta.
+        </div>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+          <a href={`mailto:${EMAIL}?subject=Suporte VitalDoctor`} className="btn btn-s btn-sm" style={{width:"auto",textDecoration:"none"}}>✉️ Email</a>
+          <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" className="btn btn-sm" style={{width:"auto",textDecoration:"none",background:"#229ED918",border:"1px solid #229ED940",color:"#229ED9"}}>💬 Telegram</a>
+        </div>
+      </div>
+
+      {/* Mensagem direta */}
+      {enviado ? (
+        <div className="card" style={{textAlign:"center",padding:"22px 18px"}}>
+          <div style={{fontSize:"2rem",marginBottom:8}}>✅</div>
+          <div style={{fontSize:".85rem",fontWeight:700,color:"#b0c4d8",marginBottom:4}}>Mensagem enviada!</div>
+          <div style={{fontSize:".7rem",color:"#3d5a7a"}}>Vamos responder o mais breve possível.</div>
+          <button className="btn btn-s btn-sm" style={{width:"auto",marginTop:12}} onClick={()=>setEnviado(false)}>Enviar outra</button>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="card-t">📨 Enviar Mensagem ao Suporte</div>
+          {err && <div className="al al-d">{err}</div>}
+          <div className="lbl">Tipo</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            {[["duvida","❓ Dúvida"],["comprovativo","🧾 Comprovativo de pagamento"],["sugestao","💡 Sugestão"]].map(([k,l])=>(
+              <button key={k} className={`chip ${tipo===k?"on":""}`} onClick={()=>setTipo(k)} style={{fontSize:".68rem"}}>{l}</button>
+            ))}
+          </div>
+          <div className="lbl">Assunto</div>
+          <input className="inp" value={assunto} onChange={e=>setAssunto(e.target.value)} placeholder={tipo==="comprovativo"?"Comprovativo de pagamento":"Resumo da tua questão"} />
+          {tipo !== "comprovativo" && <>
+            <div className="lbl">Mensagem</div>
+            <textarea className="inp" rows={4} value={mensagem} onChange={e=>setMensagem(e.target.value)} placeholder="Descreve a tua dúvida ou sugestão..." />
+          </>}
+          {tipo === "comprovativo" && <>
+            <div className="lbl">Comprovativo (foto/print)</div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={anexarFoto} style={{display:"none"}} />
+            <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>fileRef.current?.click()}>📎 {anexo?"Trocar imagem":"Anexar imagem"}</button>
+            {anexo && <img src={anexo} alt="comprovativo" style={{maxWidth:"100%",marginTop:8,borderRadius:8,border:"1px solid #1a3a5c"}} />}
+            <div className="lbl" style={{marginTop:10}}>Nota (opcional)</div>
+            <textarea className="inp" rows={2} value={mensagem} onChange={e=>setMensagem(e.target.value)} placeholder="Ex: pagamento do plano Pro de junho..." />
+          </>}
+          <button className="btn btn-p" style={{marginTop:12}} onClick={enviar} disabled={load}>{load?"A enviar...":"Enviar ao Suporte"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuporteAdmin() {
+  const [aba, setAba] = useState("inbox");
+  const [msgs, setMsgs] = useState([]);
+  const [avisos, setAvisos] = useState([]);
+  const [novoAviso, setNovoAviso] = useState({ titulo:"", corpo:"", tipo:"info" });
+  const [filtro, setFiltro] = useState("novo");
+  const [ok, setOk] = useState("");
+
+  const carregar = () => {
+    sb.from("mensagens").select("*").order("created_at", { ascending: false }).then(({ data }) => { if (data) setMsgs(data); }).catch(() => {});
+    sb.from("avisos").select("*").order("created_at", { ascending: false }).then(({ data }) => { if (data) setAvisos(data); }).catch(() => {});
+  };
+  useEffect(carregar, []);
+
+  const marcar = async (id, estado) => {
+    await sb.from("mensagens").update({ estado }).eq("id", id);
+    setMsgs(msgs.map(m => m.id === id ? { ...m, estado } : m));
+  };
+  const publicarAviso = async () => {
+    if (!novoAviso.titulo.trim()) return;
+    const { data } = await sb.from("avisos").insert({ ...novoAviso, ativo: true }).select().single();
+    if (data) { setAvisos([data, ...avisos]); setNovoAviso({ titulo:"", corpo:"", tipo:"info" }); setOk("Aviso publicado a todos!"); setTimeout(()=>setOk(""),2500); }
+  };
+  const toggleAviso = async (id, ativo) => {
+    await sb.from("avisos").update({ ativo: !ativo }).eq("id", id);
+    setAvisos(avisos.map(a => a.id === id ? { ...a, ativo: !ativo } : a));
+  };
+  const apagarAviso = async (id) => {
+    await sb.from("avisos").delete().eq("id", id);
+    setAvisos(avisos.filter(a => a.id !== id));
+  };
+
+  const msgsFiltradas = filtro === "todos" ? msgs : msgs.filter(m => m.estado === filtro);
+  const naoLidas = msgs.filter(m => m.estado === "novo").length;
+  const TIPO_LBL = { duvida:"❓ Dúvida", comprovativo:"🧾 Comprovativo", sugestao:"💡 Sugestão" };
+
+  return (
+    <div className="fade">
+      <div className="card">
+        <div className="card-t">📡 Central de Comunicação</div>
+        <div style={{display:"flex",gap:6}}>
+          <button className={`chip ${aba==="inbox"?"on":""}`} onClick={()=>setAba("inbox")}>📥 Caixa de Entrada {naoLidas>0&&`(${naoLidas})`}</button>
+          <button className={`chip ${aba==="avisos"?"on":""}`} onClick={()=>setAba("avisos")}>📢 Avisos / Campanhas</button>
+        </div>
+      </div>
+
+      {ok && <div className="al al-s">{ok}</div>}
+
+      {aba==="inbox" && (
+        <div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+            {[["novo","Novos"],["lido","Lidos"],["resolvido","Resolvidos"],["todos","Todos"]].map(([k,l])=>(
+              <button key={k} className={`chip ${filtro===k?"on":""}`} onClick={()=>setFiltro(k)} style={{fontSize:".62rem"}}>{l}</button>
+            ))}
+          </div>
+          {msgsFiltradas.length===0 && <div className="al al-i">Nenhuma mensagem nesta categoria.</div>}
+          {msgsFiltradas.map(m => (
+            <div key={m.id} className="card" style={{padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:5}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:".75rem",fontWeight:700,color:"#b0c4d8"}}>{TIPO_LBL[m.tipo]||m.tipo} · {m.assunto}</div>
+                  <div style={{fontSize:".6rem",color:"#3d5a7a"}}>{m.nome} · {m.email} · {fmtData(m.created_at?.split("T")[0])}</div>
+                </div>
+                <span style={{fontSize:".55rem",padding:"2px 7px",borderRadius:8,background:m.estado==="novo"?"#7a4a0022":m.estado==="resolvido"?"#1a5c2a22":"#1a4a5c22",color:m.estado==="novo"?"#f59e0b":m.estado==="resolvido"?"#4ade80":"#5a9ec9"}}>{m.estado}</span>
+              </div>
+              {m.mensagem && <div style={{fontSize:".72rem",color:"#7a98b8",lineHeight:1.5,marginBottom:6}}>{m.mensagem}</div>}
+              {m.anexo && <img src={m.anexo} alt="anexo" style={{maxWidth:"100%",borderRadius:8,border:"1px solid #1a3a5c",marginBottom:6}} />}
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                <a href={`mailto:${m.email}?subject=RE: ${encodeURIComponent(m.assunto||"Suporte VitalDoctor")}`} className="btn btn-s btn-sm" style={{width:"auto",textDecoration:"none"}}>✉️ Responder</a>
+                {m.estado!=="lido" && <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>marcar(m.id,"lido")}>Marcar lido</button>}
+                {m.estado!=="resolvido" && <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={()=>marcar(m.id,"resolvido")}>✓ Resolver</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {aba==="avisos" && (
+        <div>
+          <div className="card">
+            <div className="card-t">📢 Novo Aviso para Todos os Subscritores</div>
+            <div className="lbl">Tipo</div>
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              {[["info","ℹ️ Informação"],["premium","⭐ Premium/Campanha"],["manutencao","🔧 Manutenção"]].map(([k,l])=>(
+                <button key={k} className={`chip ${novoAviso.tipo===k?"on":""}`} onClick={()=>setNovoAviso({...novoAviso,tipo:k})} style={{fontSize:".62rem"}}>{l}</button>
+              ))}
+            </div>
+            <div className="lbl">Título</div>
+            <input className="inp" value={novoAviso.titulo} onChange={e=>setNovoAviso({...novoAviso,titulo:e.target.value})} placeholder="Ex: Nova funcionalidade disponível!" />
+            <div className="lbl">Mensagem</div>
+            <textarea className="inp" rows={3} value={novoAviso.corpo} onChange={e=>setNovoAviso({...novoAviso,corpo:e.target.value})} placeholder="Descreve o aviso ou campanha..." />
+            <button className="btn btn-p" style={{marginTop:10}} onClick={publicarAviso}>📢 Publicar a Todos</button>
+          </div>
+          <div style={{fontSize:".62rem",color:"#3d5a7a",margin:"4px 0 8px",letterSpacing:1,textTransform:"uppercase"}}>Avisos publicados</div>
+          {avisos.length===0 && <div className="al al-i">Sem avisos publicados.</div>}
+          {avisos.map(a => (
+            <div key={a.id} className="card" style={{padding:11,opacity:a.ativo?1:0.5}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:".75rem",fontWeight:700,color:"#b0c4d8"}}>{a.titulo}</div>
+                  <div style={{fontSize:".68rem",color:"#5a7a9a",marginTop:2}}>{a.corpo}</div>
+                </div>
+                <div style={{display:"flex",gap:4,flexShrink:0}}>
+                  <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>toggleAviso(a.id,a.ativo)}>{a.ativo?"Desativar":"Ativar"}</button>
+                  <button className="btn btn-d btn-sm" style={{width:"auto"}} onClick={()=>apagarAviso(a.id)}>✕</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPanel({ user }) {
   const [users, setUsers] = useState([]);
   const [aba, setAba] = useState("users");
@@ -1330,6 +1556,10 @@ function AdminPanel({ user }) {
   const [conteudo, setConteudo] = useState(() => { try { return JSON.parse(localStorage.getItem(LC_C)||"{}"); } catch { return {}; } });
   const [novoItem, setNovoItem] = useState({ categoria:"farmacia", nome:"", descricao:"", contraind:"", notas:"" });
   const [hotmartKey, setHotmartKey] = useState(() => localStorage.getItem("vd_hotmart_key")||"");
+  const [buscaUser, setBuscaUser] = useState("");
+  const [filtroPlano, setFiltroPlano] = useState("todos");
+  const [filtroMod, setFiltroMod] = useState("todos");
+  const [userAberto, setUserAberto] = useState(null);
 
   useEffect(() => {
     sb.from("profiles").select("*").then(({ data }) => { if (data) setUsers(data); });
@@ -1396,43 +1626,93 @@ function AdminPanel({ user }) {
         </div>
       </div>
 
-      {aba==="users" && (
-        <div>
-          <div className="al al-i" style={{marginBottom:8,fontSize:10}}>{users.length} contas · Módulo especializado activo: {users.filter(u=>(u.modulos_ativos||[]).includes("avancado")).length}</div>
-          {users.map(u=>(
-            <div key={u.id} className="admin-section">
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                <div>
-                  <div style={{fontWeight:700,fontSize:12,color:"#b0c4d8"}}>{u.nome}</div>
-                  <div style={{fontSize:9,color:"#2d4a66"}}>{u.email} · {u.role==="superadmin"?"super admin":"subscritor"}</div>
-                </div>
-              </div>
-              <div className="admin-row">
-                <span style={{fontSize:10,color:"#3d5a7a"}}>Plano</span>
-                <select className="inp sel" value={u.plano||"trial"} onChange={e=>mudarPlano(u.id,e.target.value)} style={{width:"auto",padding:"3px 22px 3px 7px",fontSize:10}}>
-                  <option value="trial">Trial</option><option value="base">Base €10</option><option value="pro">Pro €18</option><option value="elite">Elite €23</option>
-                </select>
-              </div>
-              {[["avancado","🧠 Módulo Especializado"],["audios","🎧 Áudios"],["minisite","🌐 Mini Site"]].map(([mod,label])=>(
-                <div key={mod}>
-                  <div className="admin-row">
-                    <span style={{fontSize:10,color:"#3d5a7a"}}>{label}</span>
-                    <button className={`tw ${(u.modulos_ativos||[]).includes(mod)?"on":"off"}`} onClick={()=>toggleMod(u.id,mod)} />
-                  </div>
-                  {mod==="avancado"&&(u.modulos_ativos||[]).includes(mod)&&(
-                    <div className="admin-row" style={{paddingLeft:10}}>
-                      <span style={{fontSize:9,color:"#2d4a66"}}>Válido até (vazio=vitalício)</span>
-                      <input type="date" style={{background:"#040810",border:"1px solid #0d1828",borderRadius:4,padding:"2px 6px",fontSize:9,color:"#b0c4d8"}}
-                        value={u.preferencias?.modulos_validade?.avancado||""}
-                        onChange={e=>setValidade(u.id,"avancado",e.target.value||null)} />
-                    </div>
-                  )}
+      {aba==="users" && (() => {
+        const filtrados = users
+          .filter(u => !buscaUser || (u.nome||"").toLowerCase().includes(buscaUser.toLowerCase()) || (u.email||"").toLowerCase().includes(buscaUser.toLowerCase()))
+          .filter(u => filtroPlano==="todos" || (u.plano||"trial")===filtroPlano)
+          .filter(u => filtroMod==="todos" || (filtroMod==="avancado" && (u.modulos_ativos||[]).includes("avancado")) || (filtroMod==="sem_avancado" && !(u.modulos_ativos||[]).includes("avancado")));
+        const planoLabel = { trial:"Trial", base:"Base", pro:"Pro", elite:"Elite" };
+        const planoCor = { trial:"#3d5a7a", base:"#00c6b8", pro:"#f59e0b", elite:"#a855f7" };
+        return (
+          <div>
+            {/* Resumo rápido (estatísticas) */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:10}}>
+              {[
+                ["Total", users.length, "#00c6b8"],
+                ["Especializado", users.filter(u=>(u.modulos_ativos||[]).includes("avancado")).length, "#a855f7"],
+                ["Pagos", users.filter(u=>["base","pro","elite"].includes(u.plano)).length, "#f59e0b"],
+                ["Trial", users.filter(u=>!u.plano||u.plano==="trial").length, "#3d5a7a"],
+              ].map(([l,n,c])=>(
+                <div key={l} style={{background:"#050810",border:"1px solid #0d1828",borderRadius:8,padding:"8px 6px",textAlign:"center"}}>
+                  <div style={{fontSize:"1.1rem",fontWeight:700,color:c}}>{n}</div>
+                  <div style={{fontSize:".52rem",color:"#3d5a7a",textTransform:"uppercase",letterSpacing:1}}>{l}</div>
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* Pesquisa + filtros */}
+            <input className="inp" placeholder="🔍 Pesquisar por nome ou email..." value={buscaUser} onChange={e=>setBuscaUser(e.target.value)} style={{marginBottom:7}} />
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+              {[["todos","Todos os planos"],["trial","Trial"],["base","Base"],["pro","Pro"],["elite","Elite"]].map(([k,l])=>(
+                <button key={k} className={`chip ${filtroPlano===k?"on":""}`} onClick={()=>setFiltroPlano(k)} style={{fontSize:".62rem"}}>{l}</button>
+              ))}
+              <button className={`chip ${filtroMod==="avancado"?"on":""}`} onClick={()=>setFiltroMod(filtroMod==="avancado"?"todos":"avancado")} style={{fontSize:".62rem"}}>🧠 Com Especializado</button>
+            </div>
+
+            {/* Lista compacta */}
+            {filtrados.length===0 && <div className="al al-i">Nenhum subscritor encontrado.</div>}
+            {filtrados.map(u=>{
+              const aberto = userAberto===u.id;
+              const temAv = (u.modulos_ativos||[]).includes("avancado");
+              return (
+                <div key={u.id} style={{background:"#0a0e18",border:`1px solid ${aberto?"#1a4a5c":"#0d1828"}`,borderRadius:8,marginBottom:6,overflow:"hidden"}}>
+                  {/* Linha compacta — sempre visível */}
+                  <div onClick={()=>setUserAberto(aberto?null:u.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 11px",cursor:"pointer"}}>
+                    <div style={{width:30,height:30,borderRadius:"50%",background:"#0d1828",display:"flex",alignItems:"center",justifyContent:"center",fontSize:".75rem",flexShrink:0,color:"#5a7a9a"}}>{(u.nome||"?")[0].toUpperCase()}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:".75rem",color:"#b0c4d8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.nome||"(sem nome)"}{u.role==="superadmin"&&" 👑"}</div>
+                      <div style={{fontSize:".58rem",color:"#2d4a66",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.email}</div>
+                    </div>
+                    <span style={{fontSize:".55rem",padding:"2px 7px",borderRadius:8,background:planoCor[u.plano||"trial"]+"22",color:planoCor[u.plano||"trial"],fontWeight:600,flexShrink:0}}>{planoLabel[u.plano||"trial"]}</span>
+                    {temAv && <span style={{fontSize:".7rem",flexShrink:0}} title="Módulo Especializado activo">🧠</span>}
+                    <span style={{color:"#3d5a7a",fontSize:".7rem",flexShrink:0}}>{aberto?"▾":"▸"}</span>
+                  </div>
+                  {/* Detalhe — só quando aberto */}
+                  {aberto && (
+                    <div style={{padding:"4px 11px 11px",borderTop:"1px solid #0d1828"}} className="fade">
+                      {u.role!=="superadmin" && <>
+                        <div className="admin-row">
+                          <span style={{fontSize:".68rem",color:"#3d5a7a"}}>Plano</span>
+                          <select className="inp sel" value={u.plano||"trial"} onChange={e=>mudarPlano(u.id,e.target.value)} style={{width:"auto",padding:"3px 22px 3px 7px",fontSize:".68rem"}}>
+                            <option value="trial">Trial</option><option value="base">Base €10</option><option value="pro">Pro €18</option><option value="elite">Elite €23</option>
+                          </select>
+                        </div>
+                        {[["avancado","🧠 Módulo Especializado"],["audios","🎧 Áudios"],["minisite","🌐 Mini Site"]].map(([mod,label])=>(
+                          <div key={mod}>
+                            <div className="admin-row">
+                              <span style={{fontSize:".68rem",color:"#3d5a7a"}}>{label}</span>
+                              <button className={`tw ${(u.modulos_ativos||[]).includes(mod)?"on":"off"}`} onClick={()=>toggleMod(u.id,mod)} />
+                            </div>
+                            {mod==="avancado"&&(u.modulos_ativos||[]).includes(mod)&&(
+                              <div className="admin-row" style={{paddingLeft:10}}>
+                                <span style={{fontSize:".6rem",color:"#2d4a66"}}>Válido até (vazio=vitalício)</span>
+                                <input type="date" style={{background:"#040810",border:"1px solid #0d1828",borderRadius:4,padding:"2px 6px",fontSize:".6rem",color:"#b0c4d8"}}
+                                  value={u.preferencias?.modulos_validade?.avancado||""}
+                                  onChange={e=>setValidade(u.id,"avancado",e.target.value||null)} />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>}
+                      {u.role==="superadmin" && <div style={{fontSize:".68rem",color:"#3d5a7a",padding:"6px 0"}}>👑 Super Admin — acesso total à aplicação.</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {aba==="conteudo" && (
         <div>
@@ -1628,12 +1908,13 @@ export default function VitalDoctor() {
     ...(temMod("avancado") ? [{ t:"Especializado", items:[{ id:"metodo",icon:"🧠",l:"Atendimento Especializado" }] }] : []),
     ...(temMod("minisite") ? [{ t:"Pratica", items:[{ id:"minisite",icon:"🌐",l:"Mini Site" }] }] : []),
     ...(isSuperAdmin ? [{ t:"Gestão", items:[{ id:"admin",icon:"⚙️",l:"Painel Super Admin" }] }] : []),
+    { t:"Apoio", items:[{ id:"suporte",icon:"💬",l:"Ajuda / Suporte" }] },
   ];
 
   const TITULOS = {
     dashboard:"Dashboard", pacientes:"Pacientes", agenda:"Agenda",
     metodo:"Atendimento Especializado", minisite:"Mini Site",
-    admin:"Painel Super Admin",
+    admin:"Painel Super Admin", suporte:"Ajuda / Suporte",
   };
 
   if (loading) return (
@@ -1706,6 +1987,7 @@ export default function VitalDoctor() {
             {mod === "metodo"    && temMod("avancado") && <ModuloMetodo user={perfil} adminMode={isSuperAdmin} initAba={metodoTab} voltar={() => navegar("dashboard")} />}
             {mod === "minisite"  && <MiniSite user={perfil} />}
             {mod === "admin"     && isSuperAdmin && <AdminPanel user={perfil} />}
+            {mod === "suporte"   && <Suporte user={perfil} isSuperAdmin={isSuperAdmin} />}
           </div>
         </main>
 
