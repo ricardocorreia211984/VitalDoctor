@@ -525,11 +525,34 @@ function Pacientes({ user, pacs, setPacs }) {
   const gerarLinkPortal = async () => {
     let token = sel.portal_token;
     if (!token) {
-      token = crypto.randomUUID();
+      // Token único ligado ao paciente (id curto + aleatório)
+      const idCurto = (sel.id || "").replace(/-/g, "").slice(0, 8);
+      token = `${idCurto}-${crypto.randomUUID().slice(0, 12)}`;
       await sb.from("pacientes").update({ portal_token: token, portal_ativo: true }).eq("id", sel.id).eq("terapeuta_id", user.id);
       setSel({ ...sel, portal_token: token, portal_ativo: true });
+    } else if (!sel.portal_ativo) {
+      await sb.from("pacientes").update({ portal_ativo: true }).eq("id", sel.id).eq("terapeuta_id", user.id);
+      setSel({ ...sel, portal_ativo: true });
     }
     return `${window.location.origin}/?portal=${token}`;
+  };
+
+  const removerAcessoPortal = async () => {
+    if (!confirm(`Remover o acesso ao portal de ${sel.nome}?\n\nO link atual deixa de funcionar. Podes gerar um novo depois.`)) return;
+    await sb.from("pacientes").update({ portal_ativo: false }).eq("id", sel.id).eq("terapeuta_id", user.id);
+    setSel({ ...sel, portal_ativo: false });
+    alert("Acesso removido. O link antigo já não funciona.");
+  };
+
+  const regenerarLink = async () => {
+    if (!confirm(`Gerar um link NOVO para ${sel.nome}?\n\nO link antigo deixa de funcionar imediatamente.`)) return;
+    const idCurto = (sel.id || "").replace(/-/g, "").slice(0, 8);
+    const token = `${idCurto}-${crypto.randomUUID().slice(0, 12)}`;
+    await sb.from("pacientes").update({ portal_token: token, portal_ativo: true }).eq("id", sel.id).eq("terapeuta_id", user.id);
+    setSel({ ...sel, portal_token: token, portal_ativo: true });
+    const link = `${window.location.origin}/?portal=${token}`;
+    navigator.clipboard?.writeText(link);
+    alert("Novo link gerado e copiado! O antigo já não funciona.");
   };
 
   const enviarLinkPortal = async (via) => {
@@ -946,11 +969,24 @@ function Pacientes({ user, pacs, setPacs }) {
               <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:10,lineHeight:1.5}}>
                 Envia o link e o paciente acede ao seu espaço pessoal — frases, áudios, protocolos e evolução.
               </div>
+              {sel.portal_token && (
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:6,marginBottom:10,background:sel.portal_ativo?"rgba(74,222,128,.06)":"rgba(248,113,113,.06)",border:`1px solid ${sel.portal_ativo?"#1a5c3a":"#5c1a1a"}`}}>
+                  <span style={{fontSize:".7rem",color:sel.portal_ativo?"#86efac":"#f87171"}}>{sel.portal_ativo?"● Acesso ativo":"○ Acesso removido"}</span>
+                </div>
+              )}
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <button className="btn btn-sm" style={{width:"auto",background:"#25D36618",border:"1px solid #25D36640",color:"#25D366"}} onClick={()=>enviarLinkPortal("whatsapp")}>📱 Enviar WhatsApp</button>
                 <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>enviarLinkPortal("email")}>✉️ Email</button>
                 <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>enviarLinkPortal("copiar")}>🔗 Copiar link</button>
               </div>
+              {sel.portal_token && (
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8,paddingTop:8,borderTop:"1px solid #0d1828"}}>
+                  <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".64rem"}} onClick={regenerarLink}>🔄 Gerar link novo</button>
+                  {sel.portal_ativo
+                    ? <button className="btn btn-d btn-sm" style={{width:"auto",fontSize:".64rem"}} onClick={removerAcessoPortal}>🚫 Remover acesso</button>
+                    : <button className="btn btn-p btn-sm" style={{width:"auto",fontSize:".64rem"}} onClick={async()=>{await gerarLinkPortal();}}>✓ Reativar acesso</button>}
+                </div>
+              )}
             </div>
 
             <div className="card">
@@ -1809,6 +1845,21 @@ function AdminPanel({ user }) {
   const [conteudo, setConteudo] = useState(() => { try { return JSON.parse(localStorage.getItem(LC_C)||"{}"); } catch { return {}; } });
   const [novoItem, setNovoItem] = useState({ categoria:"farmacia", nome:"", descricao:"", contraind:"", notas:"" });
   const [hotmartKey, setHotmartKey] = useState(() => localStorage.getItem("vd_hotmart_key")||"");
+  const [planos, setPlanos] = useState([]);
+  const [parceria, setParceria] = useState({ parceiro_nome:"", comissao_pct:0, ativo:false, notas:"" });
+  const [okMsg, setOkMsg] = useState("");
+  useEffect(() => {
+    sb.from("planos").select("*").order("ordem").then(({ data }) => { if (data) setPlanos(data); }).catch(()=>{});
+    sb.from("parceria_config").select("*").eq("id",1).maybeSingle().then(({ data }) => { if (data) setParceria(data); }).catch(()=>{});
+  }, []);
+  const salvarPlano = async (p) => {
+    await sb.from("planos").update({ preco:p.preco, nome:p.nome, descricao:p.descricao, max_pacientes_portal:p.max_pacientes_portal, max_profissionais:p.max_profissionais, minisite:p.minisite, modulo_avancado:p.modulo_avancado, experimental_dias:p.experimental_dias, destaque:p.destaque, ativo:p.ativo }).eq("id", p.id);
+    setOkMsg("Plano guardado!"); setTimeout(()=>setOkMsg(""), 2000);
+  };
+  const salvarParceria = async () => {
+    await sb.from("parceria_config").update({ parceiro_nome:parceria.parceiro_nome, comissao_pct:parceria.comissao_pct, ativo:parceria.ativo, notas:parceria.notas }).eq("id", 1);
+    setOkMsg("Parceria guardada!"); setTimeout(()=>setOkMsg(""), 2000);
+  };
   const [buscaUser, setBuscaUser] = useState("");
   const [filtroPlano, setFiltroPlano] = useState("todos");
   const [filtroMod, setFiltroMod] = useState("todos");
@@ -1861,7 +1912,7 @@ function AdminPanel({ user }) {
     const novo = {...conteudo,[cat]:(conteudo[cat]||[]).filter(i=>i.id!==id)};
     setConteudo(novo); await syncConteudo(novo);
   };
-  const TABS = [["users","👥 Subscritores"],["conteudo","📝 Conteúdo"],["formularios","🛠️ Formulários"],["modulos","🧩 Módulos"],["hotmart","💳 Hotmart"],["audio","🎧 Áudios"],["stats","📊 Stats"]];
+  const TABS = [["users","👥 Subscritores"],["planos","💎 Planos"],["parceria","🤝 Parceria"],["conteudo","📝 Conteúdo"],["formularios","🛠️ Formulários"],["modulos","🧩 Módulos"],["hotmart","💳 Hotmart"],["audio","🎧 Áudios"],["stats","📊 Stats"]];
   const CATS = [["farmacia","🌿 Farmácia Natural"],["infanto","👶 Infanto-Juvenil"],["protocolo","📋 Protocolo"],["texto","📄 Texto livre"]];
 
   return (
@@ -1966,6 +2017,63 @@ function AdminPanel({ user }) {
           </div>
         );
       })()}
+
+      {okMsg && <div className="al al-s">{okMsg}</div>}
+
+      {aba==="planos" && (
+        <div>
+          <div className="al al-i" style={{marginBottom:10}}>Define cada plano: preço, limites e o que o torna indispensável. Tudo editável — guarda e fica ativo para todos.</div>
+          {planos.map((p,idx) => (
+            <div key={p.id} className="card">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <input className="inp" value={p.nome} onChange={e=>{const n=[...planos];n[idx]={...p,nome:e.target.value};setPlanos(n);}} style={{width:"55%",fontWeight:700}} />
+                <label style={{fontSize:".62rem",color:"#5a7a9a",display:"flex",alignItems:"center",gap:5}}>
+                  <input type="checkbox" checked={p.ativo} onChange={e=>{const n=[...planos];n[idx]={...p,ativo:e.target.checked};setPlanos(n);}} /> Ativo
+                </label>
+              </div>
+              <div className="g2">
+                <div><span className="lbl">Preço €/mês</span><input className="inp" type="number" value={p.preco} onChange={e=>{const n=[...planos];n[idx]={...p,preco:parseFloat(e.target.value)||0};setPlanos(n);}} /></div>
+                <div><span className="lbl">Experimental (dias)</span><input className="inp" type="number" value={p.experimental_dias} onChange={e=>{const n=[...planos];n[idx]={...p,experimental_dias:parseInt(e.target.value)||0};setPlanos(n);}} /></div>
+              </div>
+              <div className="g2">
+                <div><span className="lbl">Máx. pacientes-portal</span><input className="inp" type="number" value={p.max_pacientes_portal} onChange={e=>{const n=[...planos];n[idx]={...p,max_pacientes_portal:parseInt(e.target.value)||0};setPlanos(n);}} /></div>
+                <div><span className="lbl">Máx. profissionais</span><input className="inp" type="number" value={p.max_profissionais} onChange={e=>{const n=[...planos];n[idx]={...p,max_profissionais:parseInt(e.target.value)||1};setPlanos(n);}} /></div>
+              </div>
+              <div style={{display:"flex",gap:14,margin:"8px 0"}}>
+                <label style={{fontSize:".68rem",color:"#7a98b8",display:"flex",alignItems:"center",gap:5}}><input type="checkbox" checked={p.minisite} onChange={e=>{const n=[...planos];n[idx]={...p,minisite:e.target.checked};setPlanos(n);}} /> 🌐 Mini-site</label>
+                <label style={{fontSize:".68rem",color:"#7a98b8",display:"flex",alignItems:"center",gap:5}}><input type="checkbox" checked={p.modulo_avancado} onChange={e=>{const n=[...planos];n[idx]={...p,modulo_avancado:e.target.checked};setPlanos(n);}} /> 🧠 Módulo especializado</label>
+              </div>
+              <span className="lbl">O que torna este plano indispensável</span>
+              <input className="inp" value={p.destaque||""} onChange={e=>{const n=[...planos];n[idx]={...p,destaque:e.target.value};setPlanos(n);}} placeholder="Ex: Portal ilimitado + dados na nuvem" />
+              <button className="btn btn-p btn-sm" style={{width:"100%",marginTop:8}} onClick={()=>salvarPlano(planos[idx])}>💾 Guardar {p.nome}</button>
+            </div>
+          ))}
+          {planos.length===0 && <div className="al al-w">Corre o SQL planos.sql para criar os planos.</div>}
+        </div>
+      )}
+
+      {aba==="parceria" && (
+        <div>
+          <div className="al al-i" style={{marginBottom:10}}>Gestão da parceria do módulo especializado. Regista a comissão acordada com a criadora.</div>
+          <div className="card">
+            <div className="card-t">🤝 Parceria do Módulo Especializado</div>
+            <span className="lbl">Nome do parceiro/criador</span>
+            <input className="inp" value={parceria.parceiro_nome||""} onChange={e=>setParceria({...parceria,parceiro_nome:e.target.value})} placeholder="Nome do parceiro" />
+            <div className="g2">
+              <div><span className="lbl">Comissão por venda (%)</span><input className="inp" type="number" value={parceria.comissao_pct} onChange={e=>setParceria({...parceria,comissao_pct:parseFloat(e.target.value)||0})} /></div>
+              <div style={{display:"flex",alignItems:"flex-end"}}><label style={{fontSize:".68rem",color:"#7a98b8",display:"flex",alignItems:"center",gap:5,paddingBottom:8}}><input type="checkbox" checked={parceria.ativo} onChange={e=>setParceria({...parceria,ativo:e.target.checked})} /> Parceria ativa</label></div>
+            </div>
+            <span className="lbl">Notas (acordos, condições)</span>
+            <textarea className="inp" rows={3} value={parceria.notas||""} onChange={e=>setParceria({...parceria,notas:e.target.value})} placeholder="Condições da parceria, datas, observações..." />
+            <button className="btn btn-p btn-sm" style={{width:"100%",marginTop:8}} onClick={salvarParceria}>💾 Guardar Parceria</button>
+            {parceria.ativo && parceria.comissao_pct>0 && (
+              <div style={{marginTop:10,padding:"10px",background:"rgba(245,158,11,.06)",border:"1px solid #5c4a1a",borderRadius:7,fontSize:".7rem",color:"#fde68a"}}>
+                💡 Com {parceria.comissao_pct}% de comissão: por cada subscrição de €15, devolves €{(15*parceria.comissao_pct/100).toFixed(2)} ao parceiro.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {aba==="conteudo" && (
         <div>
@@ -4043,7 +4151,7 @@ function PortalPaciente({ token }) {
   const [aba, setAba] = useState("inicio");
 
   const carregar = async () => {
-    const { data: p } = await sb.from("pacientes").select("*").eq("portal_token", token).maybeSingle();
+    const { data: p } = await sb.from("pacientes").select("*").eq("portal_token", token).eq("portal_ativo", true).maybeSingle();
     if (!p) { setErro(true); setCarregando(false); return; }
     setPac(p);
     const [it, rs, mc, mg] = await Promise.all([
