@@ -860,9 +860,11 @@ function Pacientes({ user, pacs, setPacs }) {
 // AGENDA
 // ══════════════════════════════════════════════════════
 function Agenda({ user, pacs, agenda, setAgenda }) {
-  const [vista, setVista] = useState("semana");
+  const [vista, setVista] = useState("mes");
   const [modal, setModal] = useState(false);
   const [semOff, setSemOff] = useState(0);
+  const [mesOff, setMesOff] = useState(0);
+  const [diaSel, setDiaSel] = useState(null);
   const [nova, setNova] = useState({ paciente_id:"",data:hoje(),hora:"09:00",duracao:60,tipo:"Consulta",sala:"Online",formato:"Online",notas:"",pack_total:1,pack_espaco:7 });
   const [err, setErr] = useState("");
   const [load, setLoad] = useState(false);
@@ -927,11 +929,76 @@ function Agenda({ user, pacs, agenda, setAgenda }) {
         <div style={{display:"flex",gap:7,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,color:"#dde4f0"}}>Agenda</span>
           <div style={{display:"flex",gap:5,flex:1,justifyContent:"flex-end",flexWrap:"wrap"}}>
+            <button className={`chip ${vista==="mes"?"on":""}`} onClick={() => setVista("mes")}>Mês</button>
             <button className={`chip ${vista==="semana"?"on":""}`} onClick={() => setVista("semana")}>Semana</button>
             <button className={`chip ${vista==="lista"?"on":""}`} onClick={() => setVista("lista")}>Lista</button>
-            <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={() => setModal(true)}>+ Marcacao</button>
+            <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={() => setModal(true)}>+ Marcação</button>
           </div>
         </div>
+        {vista === "mes" && (() => {
+          const base = new Date(); base.setMonth(base.getMonth() + mesOff);
+          const ano = base.getFullYear(), mes = base.getMonth();
+          const primeiro = new Date(ano, mes, 1);
+          const inicioGrelha = new Date(primeiro); inicioGrelha.setDate(1 - primeiro.getDay());
+          const dias = Array.from({length:42},(_,i)=>{ const d=new Date(inicioGrelha); d.setDate(d.getDate()+i); return d; });
+          const nomeMes = base.toLocaleDateString("pt-PT",{month:"long",year:"numeric"});
+          return (
+            <>
+              <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:10}}>
+                <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={() => setMesOff(m=>m-1)}>‹</button>
+                <span style={{fontSize:".82rem",color:"#dde4f0",flex:1,textAlign:"center",textTransform:"capitalize",fontWeight:600}}>{nomeMes}</span>
+                <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={() => setMesOff(m=>m+1)}>›</button>
+                <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".62rem"}} onClick={() => setMesOff(0)}>Hoje</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+                {["D","S","T","Q","Q","S","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:".6rem",color:"#3d5a7a",fontWeight:600,padding:"2px 0"}}>{d}</div>)}
+                {dias.map((d,i) => {
+                  const ds = d.toISOString().split("T")[0];
+                  const noMes = d.getMonth() === mes;
+                  const eHoje = ds === todayStr;
+                  const marc = marcDia(ds);
+                  return (
+                    <div key={i} onClick={() => { setDiaSel(ds); setNova(n=>({...n,data:ds})); }}
+                      style={{minHeight:"3.2rem",padding:"3px",borderRadius:6,cursor:"pointer",
+                        background: eHoje ? "rgba(0,198,184,.1)" : noMes ? "#050810" : "transparent",
+                        border: `1px solid ${diaSel===ds?"#00c6b8":eHoje?"#1a4a5c":"#0d1828"}`,
+                        opacity: noMes ? 1 : 0.35}}>
+                      <div style={{fontSize:".62rem",color:eHoje?"#00c6b8":"#5a7a9a",fontWeight:eHoje?700:400,textAlign:"center"}}>{d.getDate()}</div>
+                      {marc.slice(0,3).map(m => (
+                        <div key={m.id} style={{fontSize:".5rem",background:m.formato==="Online"?"#1a4a5c":"#3d2a5c",color:"#b0c4d8",borderRadius:3,padding:"1px 3px",marginTop:2,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>
+                          {m.hora?.slice(0,5)} {nomePac(m.paciente_id).split(" ")[0]}
+                        </div>
+                      ))}
+                      {marc.length>3 && <div style={{fontSize:".5rem",color:"#3d5a7a",textAlign:"center"}}>+{marc.length-3}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+              {diaSel && (
+                <div style={{marginTop:12,background:"#050810",border:"1px solid #1a3a5c",borderRadius:8,padding:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <strong style={{fontSize:".78rem",color:"#dde4f0"}}>{fmtData(diaSel)}</strong>
+                    <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={()=>{ setNova(n=>({...n,data:diaSel})); setModal(true); }}>+ Marcar neste dia</button>
+                  </div>
+                  {marcDia(diaSel).length===0 && <div style={{fontSize:".7rem",color:"#2d4a66"}}>Sem marcações neste dia.</div>}
+                  {marcDia(diaSel).map(m => (
+                    <div key={m.id} className="agenda-row">
+                      <div className="agenda-hora">{m.hora?.slice(0,5)}</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,fontSize:".75rem",color:"#b0c4d8"}}>{nomePac(m.paciente_id)}</div>
+                        <div style={{fontSize:".62rem",color:"#2d4a66"}}>{m.tipo} · {m.sala} · {m.duracao}min</div>
+                      </div>
+                      <div style={{display:"flex",gap:4}}>
+                        <button className="btn btn-sm" style={{padding:"3px 7px",background:"#25D36618",border:"1px solid #25D36640",color:"#25D366",width:"auto"}} onClick={() => lembrarWA(m)}>🔔</button>
+                        <button className="btn btn-d btn-sm" style={{padding:"3px 7px"}} onClick={() => remover(m.id)}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
         {vista === "semana" && (
           <>
             <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:7}}>
@@ -1287,11 +1354,7 @@ function AdminPanel({ user }) {
     await sb.from("profiles").update({ preferencias: prefs }).eq("id", id);
     setUsers(users.map(x=>x.id===id?{...x,preferencias:prefs}:x));
   };
-  const tornarAdmin = async (id) => {
-    await sb.from("profiles").update({ role:"admin" }).eq("id", id);
-    setUsers(users.map(u=>u.id===id?{...u,role:"admin"}:u));
-    setOk("Admin atribuído!"); setTimeout(()=>setOk(""),2000);
-  };
+
   const addAudio = async () => {
     if (!novoAudio.nome||!novoAudio.link_drive) { setErr("Nome e link obrigatorios."); return; }
     const { data } = await sb.from("audios").insert(novoAudio).select().single();
@@ -1341,9 +1404,8 @@ function AdminPanel({ user }) {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                 <div>
                   <div style={{fontWeight:700,fontSize:12,color:"#b0c4d8"}}>{u.nome}</div>
-                  <div style={{fontSize:9,color:"#2d4a66"}}>{u.email} · {u.role}</div>
+                  <div style={{fontSize:9,color:"#2d4a66"}}>{u.email} · {u.role==="superadmin"?"super admin":"subscritor"}</div>
                 </div>
-                {u.role!=="superadmin"&&u.role!=="admin"&&<button className="btn btn-s btn-sm" style={{fontSize:9}} onClick={()=>tornarAdmin(u.id)}>Admin</button>}
               </div>
               <div className="admin-row">
                 <span style={{fontSize:10,color:"#3d5a7a"}}>Plano</span>
@@ -1547,9 +1609,10 @@ export default function VitalDoctor() {
     setUser(null); setPerfil(null); setPacs([]); setAgenda([]); setMod("dashboard");
   };
 
+  const isSuperAdmin = perfil?.role === "superadmin";
   const isAdmin = perfil?.role === "admin" || perfil?.role === "superadmin";
   const temMod = (m) => {
-    if (isAdmin) return true;
+    if (isSuperAdmin) return true;
     const mods = perfil?.modulos_ativos || [];
     if (!mods.includes(m)) return false;
     const val = perfil?.preferencias?.modulos_validade?.[m];
@@ -1564,13 +1627,13 @@ export default function VitalDoctor() {
     ]},
     ...(temMod("avancado") ? [{ t:"Especializado", items:[{ id:"metodo",icon:"🧠",l:"Atendimento Especializado" }] }] : []),
     ...(temMod("minisite") ? [{ t:"Pratica", items:[{ id:"minisite",icon:"🌐",l:"Mini Site" }] }] : []),
-    ...(isAdmin ? [{ t:"Admin", items:[{ id:"admin",icon:"⚙️",l:"Painel Admin" }] }] : []),
+    ...(isSuperAdmin ? [{ t:"Gestão", items:[{ id:"admin",icon:"⚙️",l:"Painel Super Admin" }] }] : []),
   ];
 
   const TITULOS = {
     dashboard:"Dashboard", pacientes:"Pacientes", agenda:"Agenda",
     metodo:"Atendimento Especializado", minisite:"Mini Site",
-    admin:"Painel Admin",
+    admin:"Painel Super Admin",
   };
 
   if (loading) return (
@@ -1640,9 +1703,9 @@ export default function VitalDoctor() {
             {mod === "dashboard" && <Dashboard user={perfil} pacs={pacs} agenda={agenda} go={navegar} />}
             {mod === "pacientes" && <Pacientes user={perfil} pacs={pacs} setPacs={setPacs} />}
             {mod === "agenda"    && <Agenda user={perfil} pacs={pacs} agenda={agenda} setAgenda={setAgenda} />}
-            {mod === "metodo"    && temMod("avancado") && <ModuloMetodo user={perfil} adminMode={isAdmin} initAba={metodoTab} voltar={() => navegar("dashboard")} />}
+            {mod === "metodo"    && temMod("avancado") && <ModuloMetodo user={perfil} adminMode={isSuperAdmin} initAba={metodoTab} voltar={() => navegar("dashboard")} />}
             {mod === "minisite"  && <MiniSite user={perfil} />}
-            {mod === "admin"     && isAdmin && <AdminPanel user={perfil} />}
+            {mod === "admin"     && isSuperAdmin && <AdminPanel user={perfil} />}
           </div>
         </main>
 
