@@ -4843,6 +4843,16 @@ function MiniSite({ user }) {
     atividades:[
       { nome:"Grupo de Meditação Semanal", desc:"Encontros de meditação guiada, todas as quartas.", data:"Quartas, 19h", preco:"€10/sessão" },
     ],
+    equipa:[
+      { nome:"Dra. Ana Silva", funcao:"Fundadora · Terapeuta", bio:"15 anos de experiência em terapia holística.", foto:"" },
+      { nome:"João Martins", funcao:"Psicólogo Clínico", bio:"Especialista em ansiedade e gestão de stress.", foto:"" },
+    ],
+    redes:[
+      { rede:"Instagram", link:"https://instagram.com/exemplo" },
+      { rede:"Facebook", link:"https://facebook.com/exemplo" },
+    ],
+    morada:"Rua das Flores, 123 · Lisboa",
+    mapa_link:"",
     mostrar_marcacao:true,
   };
   const [cfg, setCfg] = useState(EXEMPLO);
@@ -4897,6 +4907,14 @@ function MiniSite({ user }) {
   const addItem = (lista, modelo) => setCfg(c => ({ ...c, [lista]:[...(c[lista]||[]), modelo] }));
   const updItem = (lista, i, k, v) => setCfg(c => { const a=[...(c[lista]||[])]; a[i]={...a[i],[k]:v}; return {...c,[lista]:a}; });
   const delItem = (lista, i) => setCfg(c => ({ ...c, [lista]:(c[lista]||[]).filter((_,x)=>x!==i) }));
+  // Upload de imagem dentro de um item de lista (equipa, testemunhos)
+  const upItemImg = (lista, i, e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (f.size > 1.5*1024*1024) { alert("Imagem muito grande (máx 1.5MB)."); return; }
+    const r = new FileReader();
+    r.onload = () => updItem(lista, i, "foto", r.result);
+    r.readAsDataURL(f);
+  };
 
   const linkPublico = cfg.site_slug ? `${window.location.origin}/?site=${cfg.site_slug}` : null;
 
@@ -5011,15 +5029,53 @@ function MiniSite({ user }) {
             </div>
           ))}
 
+          {/* Equipa / Staff */}
+          <div className="card">
+            <div className="card-t">👥 Equipa / Staff</div>
+            {(cfg.equipa||[]).map((m,i)=>(
+              <div key={i} style={{background:"#050810",border:"1px solid #0d1828",borderRadius:7,padding:9,marginBottom:7}}>
+                <div style={{display:"flex",gap:8,marginBottom:6}}>
+                  <div onClick={()=>document.getElementById(`eqfoto${i}`)?.click()} style={{width:46,height:46,borderRadius:"50%",background:"#0a0e18",border:"1px dashed #1a3a5c",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",flexShrink:0}}>
+                    {m.foto ? <img src={m.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <span style={{fontSize:".5rem",color:"#3d5a7a"}}>+foto</span>}
+                  </div>
+                  <input id={`eqfoto${i}`} type="file" accept="image/*" onChange={e=>upItemImg("equipa",i,e)} style={{display:"none"}} />
+                  <input className="inp" value={m.nome} onChange={e=>updItem("equipa",i,"nome",e.target.value)} placeholder="Nome" style={{flex:1}} />
+                  <button className="btn btn-d btn-sm" style={{padding:"3px 8px"}} onClick={()=>delItem("equipa",i)}>✕</button>
+                </div>
+                <input className="inp mb8" value={m.funcao} onChange={e=>updItem("equipa",i,"funcao",e.target.value)} placeholder="Função (ex: Psicóloga)" />
+                <input className="inp" value={m.bio} onChange={e=>updItem("equipa",i,"bio",e.target.value)} placeholder="Bio breve" />
+              </div>
+            ))}
+            <button className="btn btn-s btn-sm" style={{width:"100%"}} onClick={()=>addItem("equipa",{nome:"",funcao:"",bio:"",foto:""})}>+ Adicionar profissional</button>
+          </div>
+
+          {/* Redes sociais */}
+          <div className="card">
+            <div className="card-t">🔗 Redes Sociais</div>
+            {(cfg.redes||[]).map((r,i)=>(
+              <div key={i} style={{display:"flex",gap:6,marginBottom:6}}>
+                <input className="inp" value={r.rede} onChange={e=>updItem("redes",i,"rede",e.target.value)} placeholder="Rede (Instagram...)" style={{width:"35%"}} />
+                <input className="inp" value={r.link} onChange={e=>updItem("redes",i,"link",e.target.value)} placeholder="https://..." style={{flex:1}} />
+                <button className="btn btn-d btn-sm" style={{padding:"3px 8px"}} onClick={()=>delItem("redes",i)}>✕</button>
+              </div>
+            ))}
+            <button className="btn btn-s btn-sm" style={{width:"100%"}} onClick={()=>addItem("redes",{rede:"",link:""})}>+ Adicionar rede</button>
+          </div>
+
+          {/* Localização */}
+          <div className="card">
+            <div className="card-t">📍 Localização / Espaço Físico</div>
+            <span className="lbl">Morada</span>
+            <input className="inp" value={cfg.morada||""} onChange={e=>setCfg({...cfg,morada:e.target.value})} placeholder="Rua, número, cidade" />
+            <span className="lbl">Link do mapa (Google Maps — opcional)</span>
+            <input className="inp" value={cfg.mapa_link||""} onChange={e=>setCfg({...cfg,mapa_link:e.target.value})} placeholder="Cola o link do Google Maps" />
+          </div>
+
           <div className="card">
             <div className="card-t">📞 Contactos e Horário</div>
             <div className="g2">
-              <div><span className="lbl">Telefone</span><input className="inp" value={cfg.telefone} onChange={e=>setCfg({...cfg,telefone:e.target.value})} /></div>
+              <div><span className="lbl">Telefone / WhatsApp</span><input className="inp" value={cfg.telefone} onChange={e=>setCfg({...cfg,telefone:e.target.value})} /></div>
               <div><span className="lbl">Email</span><input className="inp" value={cfg.email} onChange={e=>setCfg({...cfg,email:e.target.value})} /></div>
-            </div>
-            <div className="g2">
-              <div><span className="lbl">Instagram</span><input className="inp" value={cfg.instagram} onChange={e=>setCfg({...cfg,instagram:e.target.value})} placeholder="sem @" /></div>
-              <div><span className="lbl">Facebook</span><input className="inp" value={cfg.facebook} onChange={e=>setCfg({...cfg,facebook:e.target.value})} /></div>
             </div>
             <span className="lbl">Horário</span>
             <input className="inp" value={cfg.horario} onChange={e=>setCfg({...cfg,horario:e.target.value})} />
@@ -5114,12 +5170,45 @@ function SitePreview({ cfg }) {
           )
         ))}
 
+        {/* Equipa */}
+        {cfg.equipa?.length>0 && <div style={{marginBottom:18}}>
+          <div style={{fontSize:".6rem",color:cor,textTransform:"uppercase",letterSpacing:1.5,marginBottom:8}}>👥 A Nossa Equipa</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {cfg.equipa.map((m,i)=>(
+              <div key={i} style={{background:"#0a0e18",border:"1px solid #0d1828",borderRadius:8,padding:12,textAlign:"center"}}>
+                <div style={{width:54,height:54,borderRadius:"50%",margin:"0 auto 8px",background:`${cor}18`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",border:`2px solid ${cor}`}}>
+                  {m.foto ? <img src={m.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <span style={{fontSize:"1.2rem"}}>{(m.nome||"?")[0]}</span>}
+                </div>
+                <div style={{fontSize:".76rem",fontWeight:600,color:"#dde4f0"}}>{m.nome}</div>
+                <div style={{fontSize:".62rem",color:cor,marginBottom:4}}>{m.funcao}</div>
+                {m.bio && <div style={{fontSize:".62rem",color:"#5a7a9a",lineHeight:1.4}}>{m.bio}</div>}
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* Localização */}
+        {(cfg.morada || cfg.mapa_link) && <div style={{marginBottom:18}}>
+          <div style={{fontSize:".6rem",color:cor,textTransform:"uppercase",letterSpacing:1.5,marginBottom:8}}>📍 Onde Estamos</div>
+          <div style={{background:"#0a0e18",border:"1px solid #0d1828",borderRadius:8,padding:12}}>
+            {cfg.morada && <div style={{fontSize:".76rem",color:"#b0c4d8",marginBottom:cfg.mapa_link?8:0}}>{cfg.morada}</div>}
+            {cfg.mapa_link && <a href={cfg.mapa_link} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",padding:"6px 14px",borderRadius:7,border:`1px solid ${cor}`,color:cor,fontSize:".7rem",textDecoration:"none"}}>🗺️ Ver no mapa</a>}
+          </div>
+        </div>}
+
         {/* Contactos / CTA */}
         <div style={{display:"flex",gap:7,flexWrap:"wrap",justifyContent:"center",marginTop:8}}>
-          {cfg.telefone && <a href={`https://wa.me/${cfg.telefone.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer" style={{padding:"9px 16px",borderRadius:8,background:cor,color:"#04221f",fontSize:".76rem",fontWeight:700,textDecoration:"none"}}>📱 Marcar / Contactar</a>}
-          {cfg.email && <a href={`mailto:${cfg.email}`} style={{padding:"9px 16px",borderRadius:8,border:`1px solid ${cor}`,color:cor,fontSize:".76rem",textDecoration:"none"}}>✉️ Email</a>}
-          {cfg.instagram && <a href={`https://instagram.com/${cfg.instagram}`} target="_blank" rel="noopener noreferrer" style={{padding:"9px 16px",borderRadius:8,border:"1px solid #0d1828",color:"#7a98b8",fontSize:".76rem",textDecoration:"none"}}>Instagram</a>}
+          {cfg.telefone && <a href={`https://wa.me/${cfg.telefone.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer" style={{padding:"10px 18px",borderRadius:8,background:cor,color:"#04221f",fontSize:".78rem",fontWeight:700,textDecoration:"none"}}>📱 Marcar / Contactar</a>}
+          {cfg.email && <a href={`mailto:${cfg.email}`} style={{padding:"10px 18px",borderRadius:8,border:`1px solid ${cor}`,color:cor,fontSize:".78rem",textDecoration:"none"}}>✉️ Email</a>}
         </div>
+
+        {/* Redes sociais */}
+        {cfg.redes?.length>0 && <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:12}}>
+          {cfg.redes.filter(r=>r.link).map((r,i)=>(
+            <a key={i} href={r.link} target="_blank" rel="noopener noreferrer" style={{padding:"6px 14px",borderRadius:20,border:"1px solid #0d1828",color:"#7a98b8",fontSize:".7rem",textDecoration:"none"}}>{r.rede}</a>
+          ))}
+        </div>}
+
         {cfg.horario && <div style={{textAlign:"center",fontSize:".68rem",color:"#3d5a7a",marginTop:14}}>🕐 {cfg.horario}</div>}
       </div>
     </div>
