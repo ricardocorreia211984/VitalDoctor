@@ -827,7 +827,9 @@ function Pacientes({ user, pacs, setPacs }) {
                     <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
                       <button className="btn btn-p btn-sm" style={{flex:1}} onClick={()=>{
                         const w=window.open("","_blank");
-                        w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title><style>body{font-family:Georgia,serif;padding:32px;max-width:720px;margin:0 auto;color:#1a1a2e}pre{white-space:pre-wrap;font-size:13px;line-height:1.8}.h{border-bottom:3px solid #1a6b61;padding-bottom:10px;margin-bottom:16px;font-size:18px;letter-spacing:3px;color:#1a6b61;font-weight:bold}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><div class="h">VITALDOCTOR</div><pre>${(c.relatorio||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre></body></html>`);
+                        const marca = user?.config?.nomePratica || "VITALDOCTOR";
+                        const logoHtml = user?.config?.logo ? `<img src="${user.config.logo}" style="max-height:50px;margin-bottom:8px" />` : "";
+                        w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title><style>body{font-family:Georgia,serif;padding:32px;max-width:720px;margin:0 auto;color:#1a1a2e}pre{white-space:pre-wrap;font-size:13px;line-height:1.8}.h{border-bottom:3px solid #1a6b61;padding-bottom:10px;margin-bottom:16px}.hn{font-size:18px;letter-spacing:2px;color:#1a6b61;font-weight:bold}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><div class="h">${logoHtml}<div class="hn">${marca}</div></div><pre>${(c.relatorio||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre></body></html>`);
                         w.document.close(); setTimeout(()=>w.print(),400);
                       }}>🖨️ PDF</button>
                       <button className="btn btn-sm" style={{flex:1,background:"#25D36618",border:"1px solid #25D36640",color:"#25D366"}} onClick={()=>{
@@ -2310,10 +2312,13 @@ export default function VitalDoctor() {
         <div className="app" style={{flex:1,overflow:"hidden"}}>
         <aside className="sb">
           <div className="sb-logo">
-            <div className="sb-logo-t">VITALDOCTOR</div>
-            <div className="sb-logo-v">SaaS v1.0</div>
+            {perfil?.config?.logo
+              ? <img src={perfil.config.logo} style={{maxHeight:34,maxWidth:"100%",objectFit:"contain"}} />
+              : <div className="sb-logo-t">{perfil?.config?.nomePratica || "VITALDOCTOR"}</div>}
+            <div className="sb-logo-v">{perfil?.config?.nomePratica ? "" : "SaaS v1.0"}</div>
           </div>
           <div className="sb-user">
+            {perfil?.config?.nomePratica && perfil?.config?.logo && <div style={{fontSize:".62rem",color:"#3d5a7a",marginBottom:4}}>{perfil.config.nomePratica}</div>}
             <div className="sb-user-n">{perfil?.nome || user.email}</div>
             <div className="sb-user-p">
               {perfil?.plano === "trial"
@@ -4142,6 +4147,7 @@ function Mensagens({ user, pacs }) {
 
 function PortalPaciente({ token }) {
   const [pac, setPac] = useState(null);
+  const [marca, setMarca] = useState(null);
   const [itens, setItens] = useState([]);
   const [msgs, setMsgs] = useState([]);
   const [novaMsg, setNovaMsg] = useState("");
@@ -4156,6 +4162,7 @@ function PortalPaciente({ token }) {
     const { data: p } = await sb.from("pacientes").select("*").eq("portal_token", token).eq("portal_ativo", true).maybeSingle();
     if (!p) { setErro(true); setCarregando(false); return; }
     setPac(p);
+    sb.from("profiles").select("config").eq("id", p.terapeuta_id).maybeSingle().then(({ data }) => { if (data?.config) setMarca(data.config); }).catch(()=>{});
     const [it, rs, mc, mg] = await Promise.all([
       sb.from("portal_itens").select("*").eq("paciente_id", p.id).eq("visivel", true).order("created_at", { ascending: false }),
       sb.from("respostas").select("*").eq("paciente_id", p.id).eq("status", "respondido").order("created_at", { ascending: true }),
@@ -4196,7 +4203,10 @@ function PortalPaciente({ token }) {
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#0a0e18,#07090f)",color:"#dde4f0",maxWidth:600,margin:"0 auto"}}>
       {/* Cabeçalho acolhedor */}
       <div style={{padding:"26px 20px 18px",textAlign:"center",borderBottom:"1px solid #0d1828"}}>
-        <div style={{fontSize:"2.2rem",marginBottom:6}}>🏛️</div>
+        {marca?.logo
+          ? <img src={marca.logo} style={{maxHeight:46,marginBottom:8,objectFit:"contain"}} />
+          : <div style={{fontSize:"2.2rem",marginBottom:6}}>🏛️</div>}
+        {marca?.nomePratica && <div style={{fontSize:".7rem",color:marca.cor||"#00c6b8",letterSpacing:1,marginBottom:8}}>{marca.nomePratica}</div>}
         <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"1.5rem",color:"#dde4f0",marginBottom:3}}>Olá, {pac.nome?.split(" ")[0]}</div>
         <div style={{fontSize:".74rem",color:"#5a7a9a"}}>{pac.portal_boas_vindas || "Bem-vindo(a) ao seu espaço de cura e acompanhamento."}</div>
       </div>
@@ -4331,9 +4341,13 @@ function FormPublico({ token }) {
   const [row, setRow] = useState(undefined);
   const [val, setVal] = useState({});
   const [feito, setFeito] = useState(false);
+  const [marca, setMarca] = useState(null);
   useEffect(() => {
     sb.from("respostas").select("*").eq("token", token).eq("status", "pendente").maybeSingle()
-      .then(({ data }) => setRow(data || null)).catch(() => setRow(null));
+      .then(({ data }) => {
+        setRow(data || null);
+        if (data?.terapeuta_id) sb.from("profiles").select("config").eq("id", data.terapeuta_id).maybeSingle().then(({ data:d }) => { if (d?.config) setMarca(d.config); }).catch(()=>{});
+      }).catch(() => setRow(null));
   }, [token]);
   const submeter = async () => {
     await sb.from("respostas").update({ respostas: val, status: "respondido" }).eq("token", token);
@@ -4342,7 +4356,10 @@ function FormPublico({ token }) {
   const form = row ? getForm(row.questionario) : null;
   return (
     <div style={{ minHeight: "100vh", background: "#050810", padding: 16, maxWidth: 560, margin: "0 auto" }}>
-      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#00c6b8", padding: "10px 0 14px" }}>VitalDoctor</div>
+      <div style={{ padding: "10px 0 14px", display:"flex", alignItems:"center", gap:10 }}>
+        {marca?.logo && <img src={marca.logo} style={{maxHeight:38,objectFit:"contain"}} />}
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: marca?.cor || "#00c6b8" }}>{marca?.nomePratica || "VitalDoctor"}</div>
+      </div>
       {row === undefined && <div style={{ color: "#5a7a9a" }}>A carregar...</div>}
       {row === null && <div className="al al-i">Este questionário já foi preenchido ou o link não é válido.</div>}
       {feito && <div className="al al-ok">Obrigado! As suas respostas foram enviadas ao terapeuta. ✅</div>}
