@@ -4834,6 +4834,15 @@ function MiniSite({ user }) {
       { nome:"Maria S.", texto:"Encontrei aqui um espaço de paz e transformação. Mudou a minha forma de lidar com a ansiedade." },
       { nome:"João P.", texto:"Profissionalismo e empatia em cada sessão. Recomendo de olhos fechados." },
     ],
+    formacoes:[
+      { nome:"Workshop de Gestão da Ansiedade", desc:"Aprende ferramentas práticas num dia intensivo.", data:"Sábado, 15 de Março", preco:"€60", vagas:"12 vagas" },
+    ],
+    produtos:[
+      { nome:"E-book: 7 Passos para o Equilíbrio", desc:"Guia digital com exercícios práticos.", preco:"€15" },
+    ],
+    atividades:[
+      { nome:"Grupo de Meditação Semanal", desc:"Encontros de meditação guiada, todas as quartas.", data:"Quartas, 19h", preco:"€10/sessão" },
+    ],
     mostrar_marcacao:true,
   };
   const [cfg, setCfg] = useState(EXEMPLO);
@@ -4883,6 +4892,11 @@ function MiniSite({ user }) {
   const addTest = () => setCfg(c => ({ ...c, testemunhos:[...c.testemunhos, { nome:"", texto:"" }] }));
   const updTest = (i, k, v) => setCfg(c => { const t=[...c.testemunhos]; t[i]={...t[i],[k]:v}; return {...c,testemunhos:t}; });
   const delTest = (i) => setCfg(c => ({ ...c, testemunhos:c.testemunhos.filter((_,x)=>x!==i) }));
+
+  // Funções genéricas para listas de venda (formações, produtos, atividades)
+  const addItem = (lista, modelo) => setCfg(c => ({ ...c, [lista]:[...(c[lista]||[]), modelo] }));
+  const updItem = (lista, i, k, v) => setCfg(c => { const a=[...(c[lista]||[])]; a[i]={...a[i],[k]:v}; return {...c,[lista]:a}; });
+  const delItem = (lista, i) => setCfg(c => ({ ...c, [lista]:(c[lista]||[]).filter((_,x)=>x!==i) }));
 
   const linkPublico = cfg.site_slug ? `${window.location.origin}/?site=${cfg.site_slug}` : null;
 
@@ -4969,6 +4983,34 @@ function MiniSite({ user }) {
             <button className="btn btn-s btn-sm" style={{width:"100%"}} onClick={addTest}>+ Adicionar testemunho</button>
           </div>
 
+          {/* Secções de venda */}
+          {[
+            ["formacoes","🎓 Formações / Workshops",{ nome:"", desc:"", data:"", preco:"", vagas:"" },true],
+            ["produtos","🛍️ Produtos à Venda",{ nome:"", desc:"", preco:"" },false],
+            ["atividades","📝 Atividades / Inscrições",{ nome:"", desc:"", data:"", preco:"" },true],
+          ].map(([lista,titulo,modelo,temData])=>(
+            <div className="card" key={lista}>
+              <div className="card-t">{titulo}</div>
+              {(cfg[lista]||[]).map((it,i)=>(
+                <div key={i} style={{background:"#050810",border:"1px solid #0d1828",borderRadius:7,padding:9,marginBottom:7}}>
+                  <div style={{display:"flex",gap:6,marginBottom:5}}>
+                    <input className="inp" value={it.nome} onChange={e=>updItem(lista,i,"nome",e.target.value)} placeholder="Nome" style={{flex:1}} />
+                    <button className="btn btn-d btn-sm" style={{padding:"3px 8px"}} onClick={()=>delItem(lista,i)}>✕</button>
+                  </div>
+                  <input className="inp mb8" value={it.desc} onChange={e=>updItem(lista,i,"desc",e.target.value)} placeholder="Descrição" />
+                  <div className="g2">
+                    <input className="inp" value={it.preco} onChange={e=>updItem(lista,i,"preco",e.target.value)} placeholder="€" />
+                    {temData
+                      ? <input className="inp" value={it.data||""} onChange={e=>updItem(lista,i,"data",e.target.value)} placeholder="Data/Horário" />
+                      : <div />}
+                  </div>
+                  {lista==="formacoes" && <input className="inp" style={{marginTop:6}} value={it.vagas||""} onChange={e=>updItem(lista,i,"vagas",e.target.value)} placeholder="Vagas (ex: 12 vagas)" />}
+                </div>
+              ))}
+              <button className="btn btn-s btn-sm" style={{width:"100%"}} onClick={()=>addItem(lista,modelo)}>+ Adicionar</button>
+            </div>
+          ))}
+
           <div className="card">
             <div className="card-t">📞 Contactos e Horário</div>
             <div className="g2">
@@ -5039,6 +5081,38 @@ function SitePreview({ cfg }) {
             </div>
           ))}
         </div>}
+
+        {/* Secções de venda */}
+        {[
+          ["formacoes","Formações & Workshops","🎓"],
+          ["atividades","Atividades & Inscrições","📝"],
+          ["produtos","Produtos","🛍️"],
+        ].map(([lista,titulo,icon])=>(
+          (cfg[lista]?.length>0) && (
+            <div key={lista} style={{marginBottom:18}}>
+              <div style={{fontSize:".6rem",color:cor,textTransform:"uppercase",letterSpacing:1.5,marginBottom:8}}>{icon} {titulo}</div>
+              {cfg[lista].map((it,i)=>{
+                const num = (cfg.telefone||"").replace(/[^0-9]/g,"");
+                const acao = lista==="produtos"?"comprar":"inscrever-me em";
+                const msg = `Olá! Tenho interesse em ${acao} "${it.nome}"${it.preco?` (${it.preco})`:""}.`;
+                return (
+                  <div key={i} style={{background:"#0a0e18",border:"1px solid #0d1828",borderRadius:8,padding:12,marginBottom:7}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
+                      <span style={{fontSize:".82rem",fontWeight:600,color:"#dde4f0"}}>{it.nome}</span>
+                      {it.preco && <span style={{fontSize:".82rem",color:cor,fontWeight:700}}>{it.preco}</span>}
+                    </div>
+                    {it.desc && <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:5,lineHeight:1.5}}>{it.desc}</div>}
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                      {it.data && <span style={{fontSize:".64rem",color:"#3d5a7a"}}>📅 {it.data}</span>}
+                      {it.vagas && <span style={{fontSize:".64rem",color:"#3d5a7a"}}>👥 {it.vagas}</span>}
+                    </div>
+                    {num && <a href={`https://wa.me/${num}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:8,padding:"7px 14px",borderRadius:7,background:cor,color:"#04221f",fontSize:".72rem",fontWeight:700,textDecoration:"none"}}>{lista==="produtos"?"🛒 Comprar":"✋ Inscrever-me"}</a>}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ))}
 
         {/* Contactos / CTA */}
         <div style={{display:"flex",gap:7,flexWrap:"wrap",justifyContent:"center",marginTop:8}}>
