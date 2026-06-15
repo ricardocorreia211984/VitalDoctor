@@ -4377,7 +4377,10 @@ function FormPublico({ token }) {
 function Farmacia({ adminMode }) {
   const LC = "vd_farmacia";
   const [itens, setItens] = useState(() => { try { return JSON.parse(localStorage.getItem(LC)||"[]"); } catch { return []; } });
-  const [novo, setNovo] = useState({ nome:"", indicacao:"", contraind:"", notas:"" });
+  const [novo, setNovo] = useState({ categoria:"Fitoterapia", nome:"", indicacao:"", preparacao:"", contraind:"", notas:"" });
+  const [busca, setBusca] = useState("");
+  const [catSel, setCatSel] = useState("todas");
+  const [bulk, setBulk] = useState("");
 
   useEffect(() => {
     sb.from("config_global").select("valor").eq("chave","farmacia").single()
@@ -4392,43 +4395,94 @@ function Farmacia({ adminMode }) {
   const adicionar = async () => {
     if (!novo.nome.trim()) return;
     const lista = [...itens, {...novo, id:Date.now()}];
-    setItens(lista); await sync(lista); setNovo({nome:"",indicacao:"",contraind:"",notas:""});
+    setItens(lista); await sync(lista); setNovo({categoria:novo.categoria,nome:"",indicacao:"",preparacao:"",contraind:"",notas:""});
   };
   const remover = async (id) => { const lista=itens.filter(i=>i.id!==id); setItens(lista); await sync(lista); };
+
+  // Importação em massa: cola blocos separados por linha em branco
+  const importarBulk = async () => {
+    if (!bulk.trim()) return;
+    const blocos = bulk.split(/\n\s*\n/).filter(b=>b.trim());
+    const novos = blocos.map((b,i) => {
+      const linhas = b.split("\n").map(l=>l.trim()).filter(Boolean);
+      return { id:Date.now()+i, categoria:novo.categoria, nome:linhas[0]||"Sem nome", indicacao:linhas.slice(1).join(" "), preparacao:"", contraind:"", notas:"" };
+    });
+    const lista = [...itens, ...novos];
+    setItens(lista); await sync(lista); setBulk("");
+    alert(`${novos.length} itens importados!`);
+  };
+
+  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const categorias = ["todas", ...Array.from(new Set(itens.map(i=>i.categoria||"Outros")))];
+  const filtrados = itens
+    .filter(i => catSel==="todas" || (i.categoria||"Outros")===catSel)
+    .filter(i => !busca || norm(i.nome+" "+i.indicacao+" "+(i.contraind||"")).includes(norm(busca)));
 
   return (
     <div className="fade">
       <div className="card">
         <div className="card-t">🌿 Farmácia Natural</div>
-        <div style={{background:"rgba(251,191,36,.04)",border:"1px solid rgba(251,191,36,.2)",borderRadius:8,padding:"10px 12px",fontSize:10,lineHeight:1.7,color:"#fde68a"}}>
+        <div style={{background:"rgba(251,191,36,.04)",border:"1px solid rgba(251,191,36,.2)",borderRadius:8,padding:"10px 12px",fontSize:".62rem",lineHeight:1.7,color:"#fde68a"}}>
           <div style={{fontWeight:700,marginBottom:4}}>⚠️ Aviso Legal — Lê antes de usar</div>
-          <div>Esta secção é uma ferramenta de <strong>apoio informativo</strong> ao terapeuta. O VitalDoctor e os seus responsáveis <strong>não assumem qualquer responsabilidade</strong> pelo uso, interpretação ou aplicação desta informação.</div>
-          <div style={{marginTop:6}}>• Não substitui prescrição médica nem avaliação clínica</div>
-          <div>• Não alteres, combines ou suspendas medicação sem consultar o médico prescritor</div>
-          <div>• Verifica sempre interações com a medicação actual de cada paciente</div>
-          <div>• A responsabilidade pelo que é indicado a cada paciente é exclusivamente do profissional que atende</div>
+          <div>Ferramenta de <strong>apoio informativo</strong>. É apenas uma sugestão — a decisão final cabe ao paciente em conjunto com o seu médico. O VitalDoctor <strong>não assume responsabilidade</strong> pelo uso desta informação.</div>
+          <div style={{marginTop:6}}>• Aconselhar sempre o paciente a confirmar com o médico</div>
+          <div>• Não substitui prescrição médica nem avaliação clínica</div>
+          <div>• Verificar sempre interações com a medicação actual do paciente</div>
         </div>
       </div>
+
+      {/* Pesquisa + categorias */}
+      <div className="card">
+        <input className="inp" placeholder="🔍 Pesquisar por nome, indicação ou sintoma..." value={busca} onChange={e=>setBusca(e.target.value)} style={{marginBottom:8}} />
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          {categorias.map(c=>(
+            <button key={c} className={`chip ${catSel===c?"on":""}`} onClick={()=>setCatSel(c)} style={{fontSize:".64rem"}}>{c==="todas"?"Todas":c}</button>
+          ))}
+        </div>
+      </div>
+
       {adminMode && (
         <div className="card">
           <div className="card-t">+ Adicionar produto</div>
-          {[["nome","Nome do produto *"],["indicacao","Indicação"],["contraind","Contra-indicações / interações"],["notas","Notas / observações"]].map(([k,ph])=>(
-            <textarea key={k} className="inp" rows={k==="nome"?1:2} placeholder={ph} style={{resize:"vertical"}} value={novo[k]} onChange={e=>setNovo(n=>({...n,[k]:e.target.value}))} />
-          ))}
+          <span className="lbl">Categoria</span>
+          <select className="inp sel" value={novo.categoria} onChange={e=>setNovo(n=>({...n,categoria:e.target.value}))}>
+            {["Fitoterapia","Óleos Essenciais","Probióticos","Suplementos","Limpeza de Órgãos","Outros"].map(c=><option key={c}>{c}</option>)}
+          </select>
+          <span className="lbl">Nome do produto *</span>
+          <input className="inp mb8" value={novo.nome} onChange={e=>setNovo(n=>({...n,nome:e.target.value}))} placeholder="Ex: Alecrim (Rosmarinus officinalis)" />
+          <span className="lbl">Indicação / Para que serve</span>
+          <textarea className="inp mb8" rows={2} value={novo.indicacao} onChange={e=>setNovo(n=>({...n,indicacao:e.target.value}))} />
+          <span className="lbl">Como preparar / tomar (doses)</span>
+          <textarea className="inp mb8" rows={2} value={novo.preparacao} onChange={e=>setNovo(n=>({...n,preparacao:e.target.value}))} placeholder="Ex: Infusão, 1 punhado de folhas, 15 min..." />
+          <span className="lbl">⚠️ Contra-indicações / interações</span>
+          <textarea className="inp mb8" rows={2} value={novo.contraind} onChange={e=>setNovo(n=>({...n,contraind:e.target.value}))} placeholder="Ex: gravidez, tensão alta, anticoagulantes..." />
+          <span className="lbl">Notas</span>
+          <textarea className="inp mb8" rows={2} value={novo.notas} onChange={e=>setNovo(n=>({...n,notas:e.target.value}))} />
           <button className="btn btn-p" onClick={adicionar} disabled={!novo.nome.trim()}>Adicionar</button>
+
+          <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid #0d1828"}}>
+            <span className="lbl">📋 Importação em massa (cola blocos separados por linha em branco — 1ª linha = nome)</span>
+            <textarea className="inp mb8" rows={3} value={bulk} onChange={e=>setBulk(e.target.value)} placeholder={"Camomila\nCalmante, digestão\n\nGengibre\nNáuseas, digestão"} />
+            <button className="btn btn-s btn-sm" onClick={importarBulk} disabled={!bulk.trim()}>Importar em massa</button>
+          </div>
         </div>
       )}
-      {itens.length === 0
-        ? <div className="al al-i">{adminMode?"Adiciona o primeiro produto acima.":"Conteúdo a ser adicionado pelo admin."}</div>
-        : itens.map(item => (
+
+      {filtrados.length === 0
+        ? <div className="al al-i">{busca?`Nada encontrado para "${busca}".`:(adminMode?"Adiciona o primeiro produto acima.":"Conteúdo a ser adicionado.")}</div>
+        : filtrados.map(item => (
           <div key={item.id} className="card">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div style={{fontWeight:700,fontSize:12,color:"#00c6b8"}}>{item.nome}</div>
-              {adminMode && <button className="chip" onClick={()=>remover(item.id)}>✕</button>}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{flex:1}}>
+                {item.categoria && <span style={{fontSize:".52rem",padding:"1px 7px",borderRadius:8,background:"#0d2535",color:"#5ae0d8",letterSpacing:.5}}>{item.categoria}</span>}
+                <div style={{fontWeight:700,fontSize:".82rem",color:"#00c6b8",marginTop:4}}>{item.nome}</div>
+              </div>
+              {adminMode && <button className="chip" onClick={()=>remover(item.id)} style={{flexShrink:0}}>✕</button>}
             </div>
-            {item.indicacao && <div style={{fontSize:10,color:"#5a7a9a",marginTop:3}}><strong>Indicação:</strong> {item.indicacao}</div>}
-            {item.contraind && <div style={{fontSize:10,color:"#f59e0b",marginTop:2}}><strong>⚠️ Contra-ind.:</strong> {item.contraind}</div>}
-            {item.notas && <div style={{fontSize:10,color:"#3d5a7a",marginTop:2}}>{item.notas}</div>}
+            {item.indicacao && <div style={{fontSize:".72rem",color:"#b0c4d8",marginTop:6}}><strong style={{color:"#5a7a9a"}}>Indicação:</strong> {item.indicacao}</div>}
+            {item.preparacao && <div style={{fontSize:".72rem",color:"#86efac",marginTop:3}}><strong style={{color:"#5a7a9a"}}>Como tomar:</strong> {item.preparacao}</div>}
+            {item.contraind && <div style={{fontSize:".72rem",color:"#f59e0b",marginTop:3}}><strong>⚠️ Contra-indicações:</strong> {item.contraind}</div>}
+            {item.notas && <div style={{fontSize:".68rem",color:"#3d5a7a",marginTop:3}}>{item.notas}</div>}
           </div>
         ))
       }
@@ -4670,17 +4724,27 @@ function Assistente({ user }) {
 
   const analisar = () => {
     if (!texto.trim()) return;
-    const palavras = norm(texto).split(/\W+/).filter(p=>p.length>3);
+    const palavras = norm(texto).split(/\W+/).filter(p=>p.length>2);
+    // Escudos: peso por nº de palavras que coincidem
     const scoreEsc = ESCUDOS.map(e => {
       const h = norm(e.nome+" "+e.emocoes);
-      return {...e, score: palavras.filter(p=>h.includes(p)).length};
+      const matches = palavras.filter(p=>h.includes(p));
+      return {...e, score: matches.length};
     }).sort((a,b)=>b.score-a.score).filter(e=>e.score>0).slice(0,2);
+    // Pontos: peso maior por correspondência específica (sintomas/aspectos),
+    // para que sintomas diferentes deem pontos diferentes
     const scorePt = PONTOS.map(p => {
-      const h = norm((p.aspectos||"")+" "+(p.sintomas||"")+" "+p.nome);
-      return {...p, score: palavras.filter(w=>h.includes(w)).length};
+      const hSint = norm((p.sintomas||"")+" "+(p.aspectos||""));
+      const hNome = norm(p.nome||"");
+      let score = 0;
+      palavras.forEach(w => {
+        if (hSint.includes(w)) score += 2;   // sintoma específico vale mais
+        else if (hNome.includes(w)) score += 1;
+      });
+      return {...p, score};
     }).sort((a,b)=>b.score-a.score).filter(p=>p.score>0).slice(0,5);
     const afirm = scoreEsc[0] ? AFIRMACOES_ESCUDO[scoreEsc[0].id] : null;
-    setSug({ escudos:scoreEsc, pontos:scorePt, afirm, perguntas:PERGUNTAS_ABERTURA.slice(0,3) });
+    setSug({ escudos:scoreEsc, pontos:scorePt, afirm, perguntas:PERGUNTAS_ABERTURA.slice(0,3), semMatch: scoreEsc.length===0 && scorePt.length===0 });
   };
 
   const ditar = () => {
