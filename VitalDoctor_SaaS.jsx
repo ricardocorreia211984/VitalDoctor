@@ -493,7 +493,7 @@ function Pacientes({ user, pacs, setPacs }) {
   const [consultas, setConsultas] = useState([]);
   const [verCons, setVerCons] = useState(null);
   const [pagamentos, setPagamentos] = useState([]);
-  const [novoPag, setNovoPag] = useState({ descricao:"",valor:"",status:"pago",forma:"MBWay",data:hoje() });
+  const [novoPag, setNovoPag] = useState({ descricao:"",valor:"",status:"pago",forma:"MBWay",acordo:"unico",data:hoje() });
   const [novoCons, setNovoCons] = useState({ data:hoje(),tipo:"Consulta",notas:"" });
   const [load, setLoad] = useState(false);
   const [materiais, setMateriais] = useState([]);
@@ -514,7 +514,7 @@ function Pacientes({ user, pacs, setPacs }) {
   const salvarNovo = async () => {
     if (!novo.nome) return;
     setLoad(true);
-    const { data, error } = await sb.from("pacientes").insert({ ...novo, terapeuta_id: user.id }).select().single();
+    const { data, error } = await sb.from("pacientes").insert({ ...novo, terapeuta_id: user.id, org_id: user.org_id || null }).select().single();
     setLoad(false);
     if (error) { alert("Erro: " + error.message); return; }
     setPacs([...pacs, data]);
@@ -655,7 +655,7 @@ function Pacientes({ user, pacs, setPacs }) {
 
   const addPag = async () => {
     if (!novoPag.descricao || !novoPag.valor) return;
-    const { data } = await sb.from("pagamentos").insert({ ...novoPag, valor: parseFloat(novoPag.valor), paciente_id: sel.id, terapeuta_id: user.id }).select().single();
+    const { data } = await sb.from("pagamentos").insert({ ...novoPag, valor: parseFloat(novoPag.valor), paciente_id: sel.id, terapeuta_id: user.id, org_id: user.org_id||null, registado_por: user.nome_profissional||user.nome||"" }).select().single();
     if (data) setPagamentos([data, ...pagamentos]);
     setNovoPag({ descricao:"",valor:"",status:"pago",forma:"MBWay",data:hoje() });
   };
@@ -1061,7 +1061,7 @@ function Pacientes({ user, pacs, setPacs }) {
           <div>
             {pagamentos.map((pg,i) => (
               <div key={i} className="pay-row">
-                <div><div style={{fontWeight:600,color:"#b0c4d8"}}>{pg.descricao}</div><div style={{fontSize:9,color:"#2d4a66"}}>{fmtData(pg.data)} · {pg.forma}</div></div>
+                <div><div style={{fontWeight:600,color:"#b0c4d8"}}>{pg.descricao}</div><div style={{fontSize:9,color:"#2d4a66"}}>{fmtData(pg.data)} · {pg.forma}{pg.acordo?` · ${pg.acordo}`:""}{pg.registado_por?` · ${pg.registado_por}`:""}</div></div>
                 <div style={{display:"flex",gap:7,alignItems:"center"}}>
                   <span style={{fontWeight:700}}>€{parseFloat(pg.valor||0).toFixed(2)}</span>
                   <span style={{fontSize:9,padding:"2px 7px",borderRadius:8,background:pg.status==="pago"?"rgba(16,185,129,.1)":"rgba(251,191,36,.08)",color:pg.status==="pago"?"#10b981":"#fbbf24",border:`1px solid ${pg.status==="pago"?"rgba(16,185,129,.2)":"rgba(251,191,36,.2)"}`}}>{pg.status}</span>
@@ -1074,12 +1074,15 @@ function Pacientes({ user, pacs, setPacs }) {
                 <div><span className="lbl">Descricao</span><input className="inp" value={novoPag.descricao} onChange={e => setNovoPag({...novoPag,descricao:e.target.value})} /></div>
                 <div><span className="lbl">Valor €</span><input className="inp" type="number" value={novoPag.valor} onChange={e => setNovoPag({...novoPag,valor:e.target.value})} /></div>
               </div>
-              <div className="g3">
-                <div><span className="lbl">Estado</span><select className="inp sel" value={novoPag.status} onChange={e => setNovoPag({...novoPag,status:e.target.value})}><option value="pago">Pago</option><option value="pendente">Pendente</option><option value="parcial">Parcial</option></select></div>
-                <div><span className="lbl">Forma</span><select className="inp sel" value={novoPag.forma} onChange={e => setNovoPag({...novoPag,forma:e.target.value})}><option>MBWay</option><option>Transferencia</option><option>Dinheiro</option><option>Cartao</option></select></div>
+              <div className="g2">
+                <div><span className="lbl">Acordo</span><select className="inp sel" value={novoPag.acordo} onChange={e => setNovoPag({...novoPag,acordo:e.target.value})}><option value="unico">Único</option><option value="faseado">Faseado/Prestações</option><option value="livre">Valor livre</option></select></div>
+                <div><span className="lbl">Estado</span><select className="inp sel" value={novoPag.status} onChange={e => setNovoPag({...novoPag,status:e.target.value})}><option value="pago">Pago ✓</option><option value="pendente">Em dívida</option><option value="parcial">Parcial</option></select></div>
+              </div>
+              <div className="g2">
+                <div><span className="lbl">Forma</span><select className="inp sel" value={novoPag.forma} onChange={e => setNovoPag({...novoPag,forma:e.target.value})}><option>MBWay</option><option>Transferencia</option><option>Dinheiro</option><option>Multibanco</option><option>Cartao</option></select></div>
                 <div><span className="lbl">Data</span><input className="inp" type="date" value={novoPag.data} onChange={e => setNovoPag({...novoPag,data:e.target.value})} /></div>
               </div>
-              <button className="btn btn-p btn-sm" style={{width:"100%",marginTop:6}} onClick={addPag}>+ Registar</button>
+              <button className="btn btn-p btn-sm" style={{width:"100%",marginTop:6}} onClick={addPag}>+ Registar / Confirmar Recebimento</button>
             </div>
           </div>
         )}
@@ -2238,9 +2241,16 @@ export default function VitalDoctor() {
       prof = { ...prof, role: "superadmin" };
     }
     setPerfil(prof);
-    const { data: ps } = await sb.from("pacientes").select("*").eq("terapeuta_id", u.id).order("nome");
+    // Se pertence a uma clínica, vê os pacientes/agenda de toda a org; senão só os seus
+    const pacQuery = prof.org_id
+      ? sb.from("pacientes").select("*").eq("org_id", prof.org_id).order("nome")
+      : sb.from("pacientes").select("*").eq("terapeuta_id", u.id).order("nome");
+    const { data: ps } = await pacQuery;
     setPacs(ps || []);
-    const { data: ag } = await sb.from("agenda").select("*").eq("terapeuta_id", u.id).order("data");
+    const agQuery = prof.org_id
+      ? sb.from("agenda").select("*").eq("org_id", prof.org_id).order("data")
+      : sb.from("agenda").select("*").eq("terapeuta_id", u.id).order("data");
+    const { data: ag } = await agQuery;
     setAgenda(ag || []);
     // Verificar termos na primeira sessão
     if (prof && !jaAceitouTermos(u.id)) setMostrarTermos(true);
@@ -2272,13 +2282,14 @@ export default function VitalDoctor() {
     ...(temMod("avancado") ? [{ t:"Especializado", items:[{ id:"metodo",icon:"🧠",l:"Atendimento Especializado" }] }] : []),
     ...(temMod("minisite") ? [{ t:"Pratica", items:[{ id:"minisite",icon:"🌐",l:"Mini Site" }] }] : []),
     ...(isSuperAdmin ? [{ t:"Gestão", items:[{ id:"admin",icon:"⚙️",l:"Painel Super Admin" }] }] : []),
+    { t:"Organização", items:[{ id:"clinica",icon:"🏥",l:"A Minha Clínica" }] },
     { t:"Apoio", items:[{ id:"suporte",icon:"🆘",l:"Ajuda / Suporte" }] },
   ];
 
   const TITULOS = {
     dashboard:"Dashboard", pacientes:"Pacientes", agenda:"Agenda", mensagens:"Mensagens",
     metodo:"Atendimento Especializado", minisite:"Mini Site",
-    admin:"Painel Super Admin", suporte:"Ajuda / Suporte",
+    admin:"Painel Super Admin", suporte:"Ajuda / Suporte", clinica:"A Minha Clínica",
   };
 
   if (loading) return (
@@ -2355,6 +2366,7 @@ export default function VitalDoctor() {
             {mod === "dashboard" && <Dashboard user={perfil} pacs={pacs} agenda={agenda} go={navegar} />}
             {mod === "pacientes" && <Pacientes user={perfil} pacs={pacs} setPacs={setPacs} />}
             {mod === "mensagens" && <Mensagens user={perfil} pacs={pacs} />}
+            {mod === "clinica"   && <Clinica user={perfil} onUpdate={setPerfil} />}
             {mod === "agenda"    && <Agenda user={perfil} pacs={pacs} agenda={agenda} setAgenda={setAgenda} />}
             {mod === "metodo"    && temMod("avancado") && <ModuloMetodo user={perfil} adminMode={isSuperAdmin} initAba={metodoTab} voltar={() => navegar("dashboard")} />}
             {mod === "minisite"  && <MiniSite user={perfil} />}
@@ -4004,6 +4016,139 @@ function Questionario({ user, initForm }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function Clinica({ user, onUpdate }) {
+  const [org, setOrg] = useState(null);
+  const [equipa, setEquipa] = useState([]);
+  const [load, setLoad] = useState(true);
+  const [nomeClinica, setNomeClinica] = useState("");
+  const [codigoJuntar, setCodigoJuntar] = useState("");
+  const [nomeProf, setNomeProf] = useState(user?.nome_profissional || user?.nome || "");
+  const [msg, setMsg] = useState("");
+
+  const carregar = async () => {
+    if (user.org_id) {
+      const { data: o } = await sb.from("organizacoes").select("*").eq("id", user.org_id).maybeSingle();
+      setOrg(o);
+      if (o && user.is_org_owner) {
+        const { data: eq } = await sb.from("profiles").select("id,nome,email,nome_profissional,is_org_owner").eq("org_id", user.org_id);
+        setEquipa(eq || []);
+      }
+    }
+    setLoad(false);
+  };
+  useEffect(() => { carregar(); }, [user.org_id]);
+
+  const gerarCodigo = () => "CLIN-" + Math.random().toString(36).slice(2,8).toUpperCase();
+
+  const criarClinica = async () => {
+    if (!nomeClinica.trim()) { setMsg("Escreve o nome da clínica."); return; }
+    setLoad(true);
+    const codigo = gerarCodigo();
+    const { data: o, error } = await sb.from("organizacoes").insert({ nome:nomeClinica, dono_id:user.id, codigo_convite:codigo }).select().single();
+    if (error) { setMsg("Erro: "+error.message); setLoad(false); return; }
+    await sb.from("profiles").update({ org_id:o.id, is_org_owner:true, nome_profissional:nomeProf }).eq("id", user.id);
+    const novoPerfil = { ...user, org_id:o.id, is_org_owner:true, nome_profissional:nomeProf };
+    onUpdate && onUpdate(novoPerfil);
+    setOrg(o); setLoad(false); setMsg("Clínica criada!");
+  };
+
+  const juntarClinica = async () => {
+    if (!codigoJuntar.trim()) { setMsg("Introduz o código de convite."); return; }
+    setLoad(true);
+    const { data: o } = await sb.from("organizacoes").select("*").eq("codigo_convite", codigoJuntar.trim().toUpperCase()).maybeSingle();
+    if (!o) { setMsg("Código inválido. Confirma com o dono da clínica."); setLoad(false); return; }
+    await sb.from("profiles").update({ org_id:o.id, is_org_owner:false, nome_profissional:nomeProf }).eq("id", user.id);
+    const novoPerfil = { ...user, org_id:o.id, is_org_owner:false, nome_profissional:nomeProf };
+    onUpdate && onUpdate(novoPerfil);
+    setOrg(o); setLoad(false); setMsg(`Juntaste-te à clínica ${o.nome}!`);
+  };
+
+  const sairClinica = async () => {
+    if (!confirm("Sair desta clínica? Os teus pacientes continuam teus, mas deixas de estar ligado à organização.")) return;
+    await sb.from("profiles").update({ org_id:null, is_org_owner:false }).eq("id", user.id);
+    const novoPerfil = { ...user, org_id:null, is_org_owner:false };
+    onUpdate && onUpdate(novoPerfil);
+    setOrg(null); setEquipa([]);
+  };
+
+  if (load) return <div className="fade"><div className="al al-i">A carregar...</div></div>;
+
+  // JÁ TEM CLÍNICA
+  if (org) {
+    return (
+      <div className="fade">
+        {msg && <div className="al al-s">{msg}</div>}
+        <div className="card">
+          <div className="card-t">🏥 {org.nome}</div>
+          <div style={{fontSize:".72rem",color:"#7a98b8",marginBottom:4}}>
+            {user.is_org_owner ? "És o dono desta clínica — vês todos os pacientes da equipa." : "És profissional desta clínica — vês os teus pacientes."}
+          </div>
+          {user.nome_profissional && <div style={{fontSize:".68rem",color:"#3d5a7a"}}>O teu nome de atendimento: <strong style={{color:"#5ae0d8"}}>{user.nome_profissional}</strong></div>}
+        </div>
+
+        {user.is_org_owner && (
+          <>
+            <div className="card">
+              <div className="card-t">🔑 Código de Convite</div>
+              <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:8}}>Partilha este código com os profissionais. Cada um cria a sua conta e introduz o código para se juntar — sem partilhar senhas.</div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <div style={{flex:1,padding:"10px 14px",background:"#050810",border:"1px solid #1a4a5c",borderRadius:8,fontSize:"1rem",fontWeight:700,color:"#00c6b8",letterSpacing:2,textAlign:"center"}}>{org.codigo_convite}</div>
+                <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>{navigator.clipboard?.writeText(org.codigo_convite);setMsg("Código copiado!");setTimeout(()=>setMsg(""),2000);}}>📋 Copiar</button>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-t">👥 Equipa ({equipa.length})</div>
+              {equipa.length===0 && <div style={{fontSize:".7rem",color:"#3d5a7a"}}>Ainda só tu. Partilha o código de convite.</div>}
+              {equipa.map(p=>(
+                <div key={p.id} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 0",borderBottom:"1px solid #0d1828"}}>
+                  <div style={{width:34,height:34,borderRadius:"50%",background:"#0d2535",display:"flex",alignItems:"center",justifyContent:"center",color:"#00c6b8",fontWeight:700,flexShrink:0}}>{(p.nome_profissional||p.nome||"?")[0].toUpperCase()}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:".74rem",color:"#b0c4d8",fontWeight:600}}>{p.nome_profissional||p.nome} {p.is_org_owner&&"👑"}</div>
+                    <div style={{fontSize:".6rem",color:"#3d5a7a"}}>{p.email}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={sairClinica}>Sair da clínica</button>
+      </div>
+    );
+  }
+
+  // SEM CLÍNICA — escolher: criar ou juntar-se
+  return (
+    <div className="fade">
+      {msg && <div className="al al-w">{msg}</div>}
+      <div className="al al-i" style={{marginBottom:10}}>
+        Trabalhas sozinho? Não precisas de clínica — a app já funciona só para ti. Esta secção é para quem quer ter uma <strong>clínica com vários profissionais</strong>.
+      </div>
+
+      <div className="card">
+        <div className="card-t">🏥 Criar a Minha Clínica</div>
+        <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:8}}>Cria uma clínica e convida profissionais. Tu vês os pacientes de todos; cada profissional vê os seus.</div>
+        <span className="lbl">Nome da clínica</span>
+        <input className="inp mb8" value={nomeClinica} onChange={e=>setNomeClinica(e.target.value)} placeholder="Ex: Clínica Bem-Estar" />
+        <span className="lbl">O teu nome de atendimento</span>
+        <input className="inp mb8" value={nomeProf} onChange={e=>setNomeProf(e.target.value)} placeholder="Ex: Dr. Ricardo" />
+        <button className="btn btn-p" onClick={criarClinica}>Criar Clínica</button>
+      </div>
+
+      <div className="card">
+        <div className="card-t">🔑 Juntar-me a uma Clínica</div>
+        <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:8}}>Tens um código de convite? Introduz aqui para te juntares à equipa.</div>
+        <span className="lbl">Código de convite</span>
+        <input className="inp mb8" value={codigoJuntar} onChange={e=>setCodigoJuntar(e.target.value)} placeholder="CLIN-XXXXXX" style={{letterSpacing:2}} />
+        <span className="lbl">O teu nome de atendimento</span>
+        <input className="inp mb8" value={nomeProf} onChange={e=>setNomeProf(e.target.value)} placeholder="Ex: Dra. Natália" />
+        <button className="btn btn-s" onClick={juntarClinica}>Juntar-me à Clínica</button>
       </div>
     </div>
   );
