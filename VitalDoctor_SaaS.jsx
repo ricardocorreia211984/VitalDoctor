@@ -5205,6 +5205,7 @@ function MiniSite({ user }) {
   const [visitantes, setVisitantes] = useState(null);
   const [inscricoesPendentes, setInscricoesPendentes] = useState(null);
   const [verStats, setVerStats] = useState(false);
+  const [leads, setLeads] = useState([]);
   const logoRef = useRef(null);
   const fotoRef = useRef(null);
 
@@ -5230,6 +5231,10 @@ function MiniSite({ user }) {
           // Inscrições pendentes
           const { data: inscricoes } = await sb.from("inscricoes").select("*", { count:"exact" }).eq("site_slug", cfg.site_slug).eq("status", "pendente");
           setInscricoesPendentes(inscricoes?.length || 0);
+
+          // Lista completa de leads (mais recentes primeiro)
+          const { data: todasLeads } = await sb.from("inscricoes").select("*").eq("site_slug", cfg.site_slug).order("created_at", { ascending:false });
+          setLeads(todasLeads || []);
         } catch(e) {
           console.log("Erro ao carregar stats:", e);
         }
@@ -5237,6 +5242,17 @@ function MiniSite({ user }) {
       carregarStats();
     }
   }, [editando, temConfig, cfg.site_slug]);
+
+  const atualizarLead = async (id, novoStatus) => {
+    await sb.from("inscricoes").update({ status: novoStatus }).eq("id", id);
+    setLeads(ls => ls.map(l => l.id === id ? { ...l, status: novoStatus } : l));
+    setInscricoesPendentes(n => {
+      const lead = leads.find(l => l.id === id);
+      if (lead?.status === "pendente" && novoStatus !== "pendente") return Math.max(0, (n||0) - 1);
+      if (lead?.status !== "pendente" && novoStatus === "pendente") return (n||0) + 1;
+      return n;
+    });
+  };
 
   const salvar = async () => {
     let slug = cfg.site_slug;
@@ -5504,11 +5520,39 @@ function MiniSite({ user }) {
             </div>
 
             <div style={{marginBottom:16}}>
-              <div style={{fontSize:".8rem",fontWeight:700,color:"#2a3a4a",marginBottom:8}}>📝 Inscrições Pendentes</div>
-              <div style={{background:"#f0f5f5",borderRadius:10,padding:12,textAlign:"center"}}>
-                <div style={{fontSize:"1.8rem",fontWeight:700,color:"#2a3a4a"}}>{inscricoesPendentes || 0}</div>
-                <div style={{fontSize:".75rem",color:"#7a8a88",marginTop:4}}>à espera de confirmação</div>
-              </div>
+              <div style={{fontSize:".8rem",fontWeight:700,color:"#2a3a4a",marginBottom:8}}>📝 Contactos recebidos ({leads.length})</div>
+              {leads.length === 0 ? (
+                <div style={{background:"#f0f5f5",borderRadius:10,padding:16,textAlign:"center",fontSize:".78rem",color:"#7a8a88"}}>
+                  Ainda sem contactos. Partilha o teu mini-site para começar a receber pedidos.
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {leads.map(l => {
+                    const cor = l.status==="convertido"?"#2e9e5b":l.status==="contactado"?"#d99a2b":l.status==="cancelado"?"#a8a8a8":"#5a9e94";
+                    const etiqueta = l.status==="convertido"?"✅ Paciente":l.status==="contactado"?"📞 Contactado":l.status==="cancelado"?"✖ Descartado":"🆕 Novo";
+                    const wa = waNumero(l.cliente_telefone);
+                    const waLink = wa ? `https://wa.me/${wa}?text=${encodeURIComponent("Olá "+(l.cliente_nome||"")+"! Recebi o teu pedido pelo site e estou a entrar em contacto.")}` : null;
+                    return (
+                      <div key={l.id} style={{border:"1px solid #e8eeee",borderLeft:`4px solid ${cor}`,borderRadius:10,padding:"11px 12px"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                          <strong style={{fontSize:".86rem",color:"#2a3a4a"}}>{l.cliente_nome}</strong>
+                          <span style={{fontSize:".62rem",fontWeight:700,color:cor,whiteSpace:"nowrap"}}>{etiqueta}</span>
+                        </div>
+                        <div style={{fontSize:".74rem",color:"#5a7a7a",marginTop:3}}>{l.cliente_telefone || l.cliente_email || "—"}</div>
+                        {l.notas && <div style={{fontSize:".74rem",color:"#7a8a88",marginTop:4,fontStyle:"italic"}}>"{l.notas}"</div>}
+                        <div style={{fontSize:".64rem",color:"#9aaaa8",marginTop:4}}>{l.data_inscricao || (l.created_at||"").split("T")[0]}</div>
+                        <div style={{display:"flex",gap:6,marginTop:9,flexWrap:"wrap"}}>
+                          {waLink && <a href={waLink} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#fff",textDecoration:"none",borderRadius:8,padding:"6px 11px",fontSize:".7rem",fontWeight:600}}>💬 WhatsApp</a>}
+                          {l.cliente_email && <a href={`mailto:${l.cliente_email}`} style={{background:"#5a7a9a",color:"#fff",textDecoration:"none",borderRadius:8,padding:"6px 11px",fontSize:".7rem",fontWeight:600}}>✉️ Email</a>}
+                          {l.status!=="contactado" && l.status!=="convertido" && <button onClick={()=>atualizarLead(l.id,"contactado")} style={{background:"#fff",border:"1px solid #d99a2b",color:"#d99a2b",borderRadius:8,padding:"6px 11px",fontSize:".7rem",fontWeight:600,cursor:"pointer"}}>📞 Contactado</button>}
+                          {l.status!=="convertido" && <button onClick={()=>atualizarLead(l.id,"convertido")} style={{background:"#fff",border:"1px solid #2e9e5b",color:"#2e9e5b",borderRadius:8,padding:"6px 11px",fontSize:".7rem",fontWeight:600,cursor:"pointer"}}>✅ Virou paciente</button>}
+                          {l.status!=="cancelado" && <button onClick={()=>atualizarLead(l.id,"cancelado")} style={{background:"#fff",border:"1px solid #ccc",color:"#999",borderRadius:8,padding:"6px 11px",fontSize:".7rem",cursor:"pointer"}}>✖</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div style={{padding:12,background:"#f7fafa",borderRadius:10,fontSize:".75rem",color:"#7a8a88"}}>
@@ -5743,37 +5787,102 @@ function SitePreview({ cfg }) {
   );
 }
 
+// Formatar número PT para link wa.me
+function waNumero(tel) {
+  const d = (tel || "").replace(/\D/g, "");
+  if (!d) return null;
+  if (d.startsWith("351")) return d;
+  if (d.length === 9) return "351" + d;
+  return d;
+}
+
+// Bloco de captação de contacto no site público (formulário + WhatsApp)
+function CaptacaoLead({ slug, terapeutaId, cfg }) {
+  const [nome, setNome] = useState("");
+  const [contacto, setContacto] = useState("");
+  const [interesse, setInteresse] = useState("");
+  const [aEnviar, setAEnviar] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const cor = cfg.cor || "#00c6b8";
+  const wa = waNumero(cfg.telefone);
+  const waLink = wa ? `https://wa.me/${wa}?text=${encodeURIComponent("Olá! Vi o seu mini-site e gostava de saber mais.")}` : null;
+
+  const enviar = async () => {
+    if (!nome.trim() || !contacto.trim()) { alert("Por favor preenche o nome e um contacto."); return; }
+    setAEnviar(true);
+    const ehEmail = contacto.includes("@");
+    try {
+      await sb.from("inscricoes").insert({
+        terapeuta_id: terapeutaId,
+        site_slug: slug,
+        categoria: "lead",
+        item_nome: "Contacto pelo mini-site",
+        cliente_nome: nome.trim(),
+        cliente_email: ehEmail ? contacto.trim() : null,
+        cliente_telefone: ehEmail ? null : contacto.trim(),
+        status: "pendente",
+        notas: interesse.trim() || null
+      });
+      setEnviado(true);
+    } catch (e) {
+      alert("Não foi possível enviar. Tenta novamente.");
+    }
+    setAEnviar(false);
+  };
+
+  return (
+    <div style={{maxWidth:440,margin:"18px auto 0",background:"#fff",borderRadius:18,padding:"22px 18px",boxShadow:"0 6px 24px rgba(0,0,0,.06)"}}>
+      {enviado ? (
+        <div style={{textAlign:"center",padding:"10px 0"}}>
+          <div style={{fontSize:"2.4rem"}}>✅</div>
+          <div style={{fontWeight:700,fontSize:"1.05rem",color:"#2a3a4a",marginTop:6}}>Pedido enviado!</div>
+          <div style={{fontSize:".82rem",color:"#7a8a88",marginTop:6}}>Em breve entramos em contacto contigo. Obrigado!</div>
+          {waLink && <a href={waLink} target="_blank" rel="noreferrer" style={{display:"block",marginTop:16,background:"#25D366",color:"#fff",textDecoration:"none",borderRadius:12,padding:"13px 0",fontWeight:600,fontSize:".9rem"}}>💬 Falar agora no WhatsApp</a>}
+        </div>
+      ) : (
+        <>
+          <div style={{fontWeight:700,fontSize:"1.1rem",color:"#2a3a4a",textAlign:"center"}}>Quero saber mais</div>
+          <div style={{fontSize:".8rem",color:"#7a8a88",textAlign:"center",marginTop:4,marginBottom:16}}>Deixa o teu contacto e eu falo contigo.</div>
+          <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="O teu nome" style={{width:"100%",boxSizing:"border-box",border:"1px solid #e2e8e8",borderRadius:11,padding:"12px 13px",fontSize:".9rem",marginBottom:9,outline:"none"}} />
+          <input value={contacto} onChange={e=>setContacto(e.target.value)} placeholder="Telemóvel ou email" style={{width:"100%",boxSizing:"border-box",border:"1px solid #e2e8e8",borderRadius:11,padding:"12px 13px",fontSize:".9rem",marginBottom:9,outline:"none"}} />
+          <textarea value={interesse} onChange={e=>setInteresse(e.target.value)} placeholder="O que procuras? (opcional)" rows={2} style={{width:"100%",boxSizing:"border-box",border:"1px solid #e2e8e8",borderRadius:11,padding:"12px 13px",fontSize:".9rem",marginBottom:12,outline:"none",resize:"vertical",fontFamily:"inherit"}} />
+          <button onClick={enviar} disabled={aEnviar} style={{width:"100%",background:cor,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:".92rem",cursor:"pointer",opacity:aEnviar?.6:1}}>{aEnviar?"A enviar...":"Enviar pedido"}</button>
+          {waLink && <a href={waLink} target="_blank" rel="noreferrer" style={{display:"block",marginTop:10,background:"#25D366",color:"#fff",textAlign:"center",textDecoration:"none",borderRadius:12,padding:"13px 0",fontWeight:600,fontSize:".9rem"}}>💬 Ou fala já no WhatsApp</a>}
+        </>
+      )}
+    </div>
+  );
+}
+
 // Página pública do mini-site (acedida pelo link ?site=slug)
 function SitePublico({ slug }) {
   const [cfg, setCfg] = useState(null);
+  const [terapeutaId, setTerapeutaId] = useState(null);
   const [erro, setErro] = useState(false);
   useEffect(() => {
-    // Registar visita
-    const registarVisita = async () => {
+    const carregar = async () => {
       const { data } = await sb.from("profiles").select("id,config");
       const perfil = (data || []).find(p => p.config?.site_slug === slug);
-      if (perfil?.id) {
-        await sb.from("visitas_minisite").insert({
+      if (perfil?.config) {
+        setCfg(perfil.config);
+        setTerapeutaId(perfil.id);
+        // Registar visita (silencioso)
+        sb.from("visitas_minisite").insert({
           site_slug: slug,
           terapeuta_id: perfil.id,
           user_agent: navigator.userAgent,
           referrer: document.referrer
         });
-      }
+      } else setErro(true);
     };
-    registarVisita();
-    
-    // Carregar config
-    sb.from("profiles").select("config").then(({ data }) => {
-      const perfil = (data || []).find(p => p.config?.site_slug === slug);
-      if (perfil?.config) setCfg(perfil.config); else setErro(true);
-    }).catch(() => setErro(true));
+    carregar().catch(() => setErro(true));
   }, [slug]);
   if (erro) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#07090f",color:"#5a7a9a",textAlign:"center",padding:24}}>Página não encontrada.</div>;
   if (!cfg) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#07090f",color:"#3d5a7a"}}>A carregar...</div>;
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#eef3f2,#f8fafa)",padding:"20px 14px"}}>
       <SitePreview cfg={cfg} />
+      <CaptacaoLead slug={slug} terapeutaId={terapeutaId} cfg={cfg} />
       <div style={{textAlign:"center",fontSize:".62rem",color:"#b8c4c2",marginTop:18,paddingBottom:20}}>Criado com VitalDoctor</div>
     </div>
   );
