@@ -5374,6 +5374,23 @@ function MiniSite({ user }) {
           </div>
 
           <div className="card">
+            <div className="card-t">🎁 Oferta em Destaque</div>
+            <label style={{display:"flex",alignItems:"center",gap:8,fontSize:".8rem",color:"#7a98b8",marginBottom:10,cursor:"pointer"}}>
+              <input type="checkbox" checked={!!cfg.oferta_ativa} onChange={e=>setCfg({...cfg,oferta_ativa:e.target.checked})} />
+              Mostrar oferta no topo do mini-site
+            </label>
+            <span className="lbl">Título da oferta</span>
+            <input className="inp" value={cfg.oferta_titulo||""} onChange={e=>setCfg({...cfg,oferta_titulo:e.target.value})} placeholder="Ex: 1ª Consulta de Avaliação GRÁTIS" />
+            <span className="lbl">Descrição (opcional)</span>
+            <input className="inp" value={cfg.oferta_texto||""} onChange={e=>setCfg({...cfg,oferta_texto:e.target.value})} placeholder="Ex: Avaliação inicial · online · sem compromisso" />
+            <span className="lbl">Texto do botão</span>
+            <input className="inp" value={cfg.oferta_botao||""} onChange={e=>setCfg({...cfg,oferta_botao:e.target.value})} placeholder="Ex: Quero a minha consulta grátis" />
+            <span className="lbl">Termina em (opcional — cria urgência com contagem)</span>
+            <input className="inp" type="datetime-local" value={cfg.oferta_fim||""} onChange={e=>setCfg({...cfg,oferta_fim:e.target.value})} />
+            <div style={{fontSize:".68rem",color:"#5a7a9a",marginTop:6,lineHeight:1.5}}>💡 O botão leva a pessoa diretamente ao formulário de contacto. Deixa os dados e cai na tua lista de leads.</div>
+          </div>
+
+          <div className="card">
             <div className="card-t">💼 Serviços</div>
             {cfg.servicos.map((s,i)=>(
               <div key={i} style={{background:"#050810",border:"1px solid #0d1828",borderRadius:7,padding:9,marginBottom:7}}>
@@ -5745,6 +5762,20 @@ function SitePreview({ cfg }) {
         </div>
       </div>
 
+      {/* OFERTA EM DESTAQUE */}
+      {cfg.oferta_ativa && cfg.oferta_titulo && (
+        <div style={{background:"linear-gradient(135deg,#e23b3b,#ff7a45)",padding:"18px 20px",textAlign:"center",color:"#fff"}}>
+          <div style={{fontSize:".62rem",letterSpacing:2,fontWeight:700,opacity:.92,marginBottom:5}}>🎁 OFERTA ESPECIAL</div>
+          <div style={{fontSize:"1.25rem",fontWeight:800,lineHeight:1.2,marginBottom:cfg.oferta_texto?5:11}}>{cfg.oferta_titulo}</div>
+          {cfg.oferta_texto && <div style={{fontSize:".82rem",opacity:.95,marginBottom:11}}>{cfg.oferta_texto}</div>}
+          {cfg.oferta_fim && new Date(cfg.oferta_fim) > agora && <div style={{fontSize:".74rem",marginBottom:11,opacity:.95}}>⏳ Termina em: <FlashTimer fim={cfg.oferta_fim} /></div>}
+          <button onClick={()=>{const el=typeof document!=="undefined"&&document.getElementById("vd-captacao");if(el)el.scrollIntoView({behavior:"smooth",block:"center"});}}
+            style={{background:"#fff",color:"#e23b3b",border:"none",borderRadius:30,padding:"11px 26px",fontSize:".88rem",fontWeight:800,cursor:"pointer",boxShadow:"0 4px 14px rgba(0,0,0,.18)"}}>
+            {cfg.oferta_botao||"Quero aproveitar →"}
+          </button>
+        </div>
+      )}
+
       {/* FLASH BANNER */}
       {flashItems.length > 0 && (
         <div style={{background:`linear-gradient(90deg,#1a2e2c,${cor})`,padding:"12px 18px",textAlign:"center",cursor:"pointer"}} onClick={()=>setAba(flashItems[0].lista)}>
@@ -5831,7 +5862,7 @@ function CaptacaoLead({ slug, terapeutaId, cfg }) {
   };
 
   return (
-    <div style={{maxWidth:440,margin:"18px auto 0",background:"#fff",borderRadius:18,padding:"22px 18px",boxShadow:"0 6px 24px rgba(0,0,0,.06)"}}>
+    <div id="vd-captacao" style={{maxWidth:440,margin:"18px auto 0",background:"#fff",borderRadius:18,padding:"22px 18px",boxShadow:"0 6px 24px rgba(0,0,0,.06)"}}>
       {enviado ? (
         <div style={{textAlign:"center",padding:"10px 0"}}>
           <div style={{fontSize:"2.4rem"}}>✅</div>
