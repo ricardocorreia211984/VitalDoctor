@@ -5202,6 +5202,9 @@ function MiniSite({ user }) {
   const [editando, setEditando] = useState(false);
   const [ok, setOk] = useState("");
   const [temConfig, setTemConfig] = useState(false);
+  const [visitantes, setVisitantes] = useState(null);
+  const [inscricoesPendentes, setInscricoesPendentes] = useState(null);
+  const [verStats, setVerStats] = useState(false);
   const logoRef = useRef(null);
   const fotoRef = useRef(null);
 
@@ -5212,6 +5215,28 @@ function MiniSite({ user }) {
       setTemConfig(true);
     }
   }, [user]);
+
+  // Carregar stats quando sai do modo editar
+  useEffect(() => {
+    if (!editando && temConfig && cfg.site_slug) {
+      const carregarStats = async () => {
+        try {
+          // Visitantes nos últimos 7 dias
+          const dataHoje = new Date();
+          const data7diasAtras = new Date(dataHoje.getTime() - 7*24*60*60*1000).toISOString().split('T')[0];
+          const { data: visitas } = await sb.from("visitas_minisite").select("*", { count:"exact" }).eq("site_slug", cfg.site_slug).gte("data", data7diasAtras);
+          setVisitantes(visitas?.length || 0);
+          
+          // Inscrições pendentes
+          const { data: inscricoes } = await sb.from("inscricoes").select("*", { count:"exact" }).eq("site_slug", cfg.site_slug).eq("status", "pendente");
+          setInscricoesPendentes(inscricoes?.length || 0);
+        } catch(e) {
+          console.log("Erro ao carregar stats:", e);
+        }
+      };
+      carregarStats();
+    }
+  }, [editando, temConfig, cfg.site_slug]);
 
   const salvar = async () => {
     let slug = cfg.site_slug;
@@ -5270,9 +5295,29 @@ function MiniSite({ user }) {
       <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
         <button className={`chip ${editando?"on":""}`} onClick={() => setEditando(true)}>✏️ Editar</button>
         <button className={`chip ${!editando?"on":""}`} onClick={() => setEditando(false)}>👁️ Pré-visualizar</button>
-        {linkPublico && <button className="chip" onClick={()=>{navigator.clipboard?.writeText(linkPublico);setOk("Link copiado!");setTimeout(()=>setOk(""),2000);}}>🔗 Link público</button>}
+        {linkPublico && <button className="chip" style={{background:"#5a9e9415",border:"1px solid #5a9e9440",color:"#5a9e94"}} onClick={()=>{navigator.clipboard?.writeText(linkPublico);setOk("🔗 Link copiado!");setTimeout(()=>setOk(""),2000);}}>🔗 {cfg.nomePratica||"Mini-site"}</button>}
         {editando && <button className="chip" style={{borderColor:"#5c1a1a",color:"#f87171"}} onClick={limparTudo}>🗑️ Limpar tudo</button>}
       </div>
+
+      {/* Dashboard de stats */}
+      {!editando && temConfig && (
+        <div className="card" style={{background:"linear-gradient(135deg,#5a9e9418,#5a9e940a)",borderLeft:`4px solid #5a9e94`,marginBottom:16}}>
+          <div className="card-t">📊 Desempenho do Mini-Site</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:8}}>
+            <div style={{background:"#fff",borderRadius:10,padding:12,textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
+              <div style={{fontSize:".7rem",color:"#7a8a88"}}>Visitantes (7 dias)</div>
+              <div style={{fontSize:"1.8rem",fontWeight:700,color:"#5a9e94",marginTop:4}}>{visitantes ?? "—"}</div>
+              <div style={{fontSize:".65rem",color:"#9aaaa8",marginTop:2}}>{visitantes===null?"a carregar...":"visitantes"}</div>
+            </div>
+            <div style={{background:"#fff",borderRadius:10,padding:12,textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
+              <div style={{fontSize:".7rem",color:"#7a8a88"}}>Inscrições pendentes</div>
+              <div style={{fontSize:"1.8rem",fontWeight:700,color:"#5a9e94",marginTop:4}}>{inscricoesPendentes ?? "—"}</div>
+              <div style={{fontSize:".65rem",color:"#9aaaa8",marginTop:2}}>{inscricoesPendentes===null?"a carregar...":"pendentes"}</div>
+            </div>
+          </div>
+          <button className="btn btn-s btn-sm" style={{width:"100%",marginTop:10}} onClick={()=>setVerStats(true)}>📈 Ver detalhes completos</button>
+        </div>
+      )}
 
       {editando ? (
         <div>
@@ -5433,6 +5478,46 @@ function MiniSite({ user }) {
         </div>
       ) : (
         <SitePreview cfg={cfg} />
+      )}
+
+      {/* Modal de stats detalhadas */}
+      {verStats && (
+        <div className="modal" style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div className="card" style={{maxWidth:500,maxHeight:"80vh",overflow:"auto",margin:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div className="card-t">📊 Estatísticas Completas</div>
+              <button onClick={()=>setVerStats(false)} style={{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#5a7a9a"}}>✕</button>
+            </div>
+            
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:".8rem",fontWeight:700,color:"#2a3a4a",marginBottom:8}}>🔗 Seu Mini-Site</div>
+              <div style={{background:"#f0f5f5",borderRadius:10,padding:12,fontSize:".75rem",wordBreak:"break-all",color:"#3a5a7a"}}>{linkPublico}</div>
+              <button className="btn btn-s" style={{width:"100%",marginTop:8}} onClick={()=>{navigator.clipboard?.writeText(linkPublico);setOk("Link copiado!");setTimeout(()=>setOk(""),2000);}}>📋 Copiar link</button>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:".8rem",fontWeight:700,color:"#2a3a4a",marginBottom:8}}>👥 Visitantes (últimos 7 dias)</div>
+              <div style={{background:"#5a9e9415",borderRadius:10,padding:16,textAlign:"center"}}>
+                <div style={{fontSize:"2.2rem",fontWeight:700,color:"#5a9e94"}}>{visitantes || 0}</div>
+                <div style={{fontSize:".75rem",color:"#7a8a88",marginTop:4}}>pessoas visitaram seu mini-site</div>
+              </div>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:".8rem",fontWeight:700,color:"#2a3a4a",marginBottom:8}}>📝 Inscrições Pendentes</div>
+              <div style={{background:"#f0f5f5",borderRadius:10,padding:12,textAlign:"center"}}>
+                <div style={{fontSize:"1.8rem",fontWeight:700,color:"#2a3a4a"}}>{inscricoesPendentes || 0}</div>
+                <div style={{fontSize:".75rem",color:"#7a8a88",marginTop:4}}>à espera de confirmação</div>
+              </div>
+            </div>
+
+            <div style={{padding:12,background:"#f7fafa",borderRadius:10,fontSize:".75rem",color:"#7a8a88"}}>
+              <strong>💡 Dica:</strong> Partilha o teu mini-site nas redes sociais, email e WhatsApp para aumentar visitantes e inscrições!
+            </div>
+
+            <button className="btn btn-p" style={{width:"100%",marginTop:16}} onClick={()=>setVerStats(false)}>Fechar</button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -5663,6 +5748,22 @@ function SitePublico({ slug }) {
   const [cfg, setCfg] = useState(null);
   const [erro, setErro] = useState(false);
   useEffect(() => {
+    // Registar visita
+    const registarVisita = async () => {
+      const { data: perfis } = await sb.from("profiles").select("id,site_slug").eq("config->site_slug", slug);
+      if (perfis?.length > 0) {
+        const terapeuta_id = perfis[0].id;
+        await sb.from("visitas_minisite").insert({
+          site_slug: slug,
+          terapeuta_id,
+          user_agent: navigator.userAgent,
+          referrer: document.referrer
+        }).catch(() => {}); // silencioso se falhar
+      }
+    };
+    registarVisita();
+    
+    // Carregar config
     sb.from("profiles").select("config").then(({ data }) => {
       const perfil = (data || []).find(p => p.config?.site_slug === slug);
       if (perfil?.config) setCfg(perfil.config); else setErro(true);
