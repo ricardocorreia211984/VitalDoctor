@@ -5439,28 +5439,15 @@ function MiniSite({ user }) {
 }
 
 // Pré-visualização e página pública partilham o mesmo render
-function FlashTimer({ fim }) {
-  const [resto, setResto] = useState("");
-  useEffect(() => {
-    const tick = () => {
-      const diff = new Date(fim) - new Date();
-      if (diff <= 0) { setResto("EXPIROU"); return; }
-      const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
-      setResto(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`);
-    };
-    tick(); const iv = setInterval(tick, 1000); return () => clearInterval(iv);
-  }, [fim]);
-  return <span style={{fontFamily:"monospace",fontWeight:700,fontSize:"1.1rem",letterSpacing:2}}>{resto}</span>;
-}
-
-const REDE_ICONES = { Instagram:"📸", Facebook:"👥", TikTok:"🎵", YouTube:"▶️", LinkedIn:"💼", Twitter:"🐦", Pinterest:"📌", Spotify:"🎵", Website:"🌐" };
-
 function SitePreview({ cfg }) {
   const cor = cfg.cor || "#5a9e94";
   const corLight = cor + "18";
   const W = { fontFamily:"system-ui,sans-serif", background:"#f7fafa", color:"#1a2e2c" };
+  const [abertas, setAbertas] = useState({});
+  const topRef = useRef(null);
 
-  // Secções com ícones para a grelha home
+  const toggle = (id) => setAbertas(a => ({...a, [id]: !a[id]}));
+
   const SECS = [
     cfg.servicos?.length && ["servicos","🌿","Serviços"],
     cfg.formacoes?.length && ["formacoes","🎓","Formações"],
@@ -5468,11 +5455,10 @@ function SitePreview({ cfg }) {
     cfg.produtos?.length && ["produtos","🛍️","Produtos"],
     cfg.equipa?.length && ["equipa","👥","Equipa"],
     cfg.testemunhos?.length && ["testemunhos","💬","Testemunhos"],
+    (cfg.bio||cfg.abordagem) && ["sobre","✦","Sobre"],
+    (cfg.morada||cfg.mapa_link) && ["local","📍","Localização"],
   ].filter(Boolean);
 
-  const scrollTo = id => document.getElementById("ms-"+id)?.scrollIntoView({behavior:"smooth",block:"start"});
-
-  // Flash deals ativos (com desconto e prazo futuro)
   const agora = new Date();
   const flashItems = [];
   ["servicos","formacoes","atividades","produtos"].forEach(lista => {
@@ -5489,17 +5475,17 @@ function SitePreview({ cfg }) {
     return (
       <div style={{background:"#fff",border:temFlash?`2px solid ${cor}`:"1px solid #e8f0ef",borderRadius:14,padding:16,marginBottom:10,boxShadow:temFlash?`0 2px 16px ${cor}30`:"0 1px 4px rgba(0,0,0,.04)"}}>
         {temFlash && <div style={{display:"flex",alignItems:"center",gap:8,background:`linear-gradient(90deg,${cor},${cor}cc)`,color:"#fff",padding:"6px 12px",borderRadius:8,marginBottom:10,fontSize:".72rem",fontWeight:600}}>
-          🔥 PROMOÇÃO RELÂMPAGO · <FlashTimer fim={it.desconto_fim} />
+          🔥 PROMOÇÃO · <FlashTimer fim={it.desconto_fim} />
         </div>}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:6}}>
-          <span style={{fontSize:"1rem",fontWeight:700,color:"#1a2e2c",lineHeight:1.3}}>{it.nome}</span>
+          <span style={{fontSize:"1rem",fontWeight:700,color:"#1a2e2c",lineHeight:1.3,flex:1}}>{it.nome}</span>
           <div style={{textAlign:"right",flexShrink:0}}>
             {temFlash && <div style={{fontSize:".72rem",color:"#9aaaa8",textDecoration:"line-through"}}>{it.preco}</div>}
-            <span style={{fontSize:"1rem",color:temFlash?"#e55":"" || cor,fontWeight:700}}>{temFlash?it.desconto:it.preco}</span>
+            {(it.preco||it.desconto) && <span style={{fontSize:"1rem",color:temFlash?"#e55":cor,fontWeight:700}}>{temFlash?it.desconto:it.preco}</span>}
           </div>
         </div>
-        {it.desc && <div style={{fontSize:".84rem",color:"#5a6e6c",lineHeight:1.6,marginBottom:8}}>{it.desc}</div>}
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:num?10:0}}>
+        {it.desc && <div style={{fontSize:".86rem",color:"#5a6e6c",lineHeight:1.6,marginBottom:8}}>{it.desc}</div>}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:num?10:0}}>
           {it.data && <span style={{fontSize:".72rem",color:"#8a9a98",background:"#f0f5f5",padding:"3px 9px",borderRadius:8}}>📅 {it.data}</span>}
           {it.vagas && <span style={{fontSize:".72rem",color:"#8a9a98",background:"#f0f5f5",padding:"3px 9px",borderRadius:8}}>👥 {it.vagas}</span>}
           {it.duracao && <span style={{fontSize:".72rem",color:"#8a9a98",background:"#f0f5f5",padding:"3px 9px",borderRadius:8}}>⏱ {it.duracao}</span>}
@@ -5512,17 +5498,24 @@ function SitePreview({ cfg }) {
     );
   };
 
+  const SecHeader = ({id, icon, label}) => (
+    <button onClick={()=>toggle(id)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",background:"#fff",border:"none",borderBottom:"1px solid #eef3f3",cursor:"pointer",textAlign:"left"}}>
+      <span style={{fontSize:".88rem",fontWeight:700,color:"#1a2e2c"}}>{icon} {label}</span>
+      <span style={{fontSize:"1.1rem",color:cor,transition:"transform .2s",display:"inline-block",transform:abertas[id]?"rotate(180deg)":"rotate(0deg)"}}>⌄</span>
+    </button>
+  );
+
   return (
-    <div style={{...W, borderRadius:16, overflow:"hidden", maxWidth:580, margin:"0 auto", boxShadow:"0 8px 40px rgba(0,0,0,.08)", border:"1px solid #e0ecec"}}>
+    <div ref={topRef} style={{...W, borderRadius:16, overflow:"hidden", maxWidth:580, margin:"0 auto", boxShadow:"0 8px 40px rgba(0,0,0,.08)", border:"1px solid #e0ecec", position:"relative"}}>
 
       {/* HERO */}
-      <div style={{padding:"36px 22px 28px", background:`linear-gradient(160deg,${cor}20,${cor}08 55%,#f7fafa)`, textAlign:"center"}}>
-        <div style={{display:"flex",justifyContent:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+      <div style={{padding:"36px 22px 28px", background:`linear-gradient(160deg,${cor}20,${cor}06 55%,#f7fafa)`, textAlign:"center"}}>
+        <div style={{display:"flex",justifyContent:"center",gap:12,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
           {cfg.logo && <img src={cfg.logo} style={{maxHeight:56,objectFit:"contain",borderRadius:8}} />}
-          {cfg.foto && <img src={cfg.foto} style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",border:`3px solid #fff`,boxShadow:`0 4px 14px ${cor}50`}} />}
+          {cfg.foto && <img src={cfg.foto} style={{width:76,height:76,borderRadius:"50%",objectFit:"cover",border:`3px solid #fff`,boxShadow:`0 4px 14px ${cor}50`}} />}
         </div>
-        <div style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:"1.9rem",color:"#1a2e2c",lineHeight:1.15,marginBottom:6}}>{cfg.nomePratica||"O teu espaço terapêutico"}</div>
-        {cfg.subtitulo && <div style={{fontSize:".9rem",color:cor,fontWeight:600,marginBottom:10}}>{cfg.subtitulo}</div>}
+        <div style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:"2rem",color:"#1a2e2c",lineHeight:1.15,marginBottom:6}}>{cfg.nomePratica||"O teu espaço terapêutico"}</div>
+        {cfg.subtitulo && <div style={{fontSize:".9rem",color:cor,fontWeight:600,marginBottom:8}}>{cfg.subtitulo}</div>}
         {cfg.credenciais && <div style={{fontSize:".72rem",color:"#7a8a88",marginBottom:16}}>{cfg.credenciais}</div>}
         <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
           {cfg.telefone && <a href={`https://wa.me/${cfg.telefone.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer"
@@ -5532,127 +5525,140 @@ function SitePreview({ cfg }) {
         </div>
       </div>
 
-      {/* GRELHA DE ÍCONES — como app */}
-      {SECS.length > 0 && (
-        <div style={{background:"#fff",borderBottom:"1px solid #eef3f3",padding:"14px 16px"}}>
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(SECS.length,4)},1fr)`,gap:6}}>
-            {SECS.map(([id,icon,lbl])=>(
-              <button key={id} onClick={()=>scrollTo(id)}
-                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"10px 6px",borderRadius:12,border:`1px solid ${cor}20`,background:corLight,cursor:"pointer",transition:"all .15s"}}>
-                <span style={{fontSize:"1.5rem"}}>{icon}</span>
-                <span style={{fontSize:".62rem",color:cor,fontWeight:600}}>{lbl}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* BANNER FLASH DEALS */}
+      {/* FLASH BANNER */}
       {flashItems.length > 0 && (
-        <div style={{background:`linear-gradient(90deg,#1a2e2c,${cor})`,padding:"14px 18px",textAlign:"center"}}>
-          <div style={{fontSize:".7rem",color:"rgba(255,255,255,.7)",letterSpacing:1,marginBottom:4}}>🔥 PROMOÇÃO RELÂMPAGO</div>
-          {flashItems.map((it,i)=>(
-            <div key={i} style={{color:"#fff",fontSize:".82rem",fontWeight:600}}>{it.nome} — <span style={{textDecoration:"line-through",opacity:.6}}>{it.preco}</span> → <span style={{color:"#ffd54f"}}>{it.desconto}</span></div>
-          ))}
-          <div style={{color:"rgba(255,255,255,.8)",fontSize:".72rem",marginTop:6}}>Termina em: <FlashTimer fim={flashItems[0].desconto_fim} /></div>
+        <div style={{background:`linear-gradient(90deg,#1a2e2c,${cor})`,padding:"12px 18px",textAlign:"center",cursor:"pointer"}} onClick={()=>toggle(flashItems[0].lista)}>
+          <div style={{fontSize:".68rem",color:"rgba(255,255,255,.7)",letterSpacing:1,marginBottom:3}}>🔥 PROMOÇÃO RELÂMPAGO — toca para ver</div>
+          {flashItems.map((it,i)=><div key={i} style={{color:"#fff",fontSize:".82rem",fontWeight:600}}>{it.nome} · <span style={{textDecoration:"line-through",opacity:.6}}>{it.preco}</span> → <span style={{color:"#ffd54f"}}>{it.desconto}</span></div>)}
+          <div style={{color:"rgba(255,255,255,.8)",fontSize:".72rem",marginTop:4}}>Termina em: <FlashTimer fim={flashItems[0].desconto_fim} /></div>
         </div>
       )}
 
-      <div style={{padding:"22px 18px 36px",background:"#f7fafa"}}>
+      {/* GRELHA DE CATEGORIAS — acordeão */}
+      <div style={{background:"#fff",borderBottom:"1px solid #eef3f3",padding:"14px 14px 10px"}}>
+        <div style={{fontSize:".6rem",color:"#9aaaa8",textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,textAlign:"center"}}>Toca para explorar</div>
+        <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(SECS.length,4)},1fr)`,gap:8}}>
+          {SECS.map(([id,icon,lbl])=>(
+            <button key={id} onClick={()=>toggle(id)}
+              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"12px 6px",borderRadius:14,border:`1.5px solid ${abertas[id]?cor:cor+"30"}`,background:abertas[id]?corLight:"transparent",cursor:"pointer",transition:"all .15s"}}>
+              <span style={{fontSize:"1.6rem"}}>{icon}</span>
+              <span style={{fontSize:".65rem",color:abertas[id]?cor:"#7a8a88",fontWeight:abertas[id]?700:500}}>{lbl}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CONTEÚDO POR SECÇÕES — acordeão */}
+      <div style={{background:"#f7fafa"}}>
+
         {/* Sobre */}
-        {cfg.bio && <div style={{marginBottom:24,background:"#fff",borderRadius:14,padding:18,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:8}}>✦ Sobre</div>
-          <div style={{fontSize:".9rem",color:"#2a3b3a",lineHeight:1.85}}>{cfg.bio}</div>
-        </div>}
-        {cfg.abordagem && <div style={{marginBottom:24,padding:"16px 18px",background:`${cor}0d`,borderRadius:14,borderLeft:`4px solid ${cor}`}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:6}}>A Minha Abordagem</div>
-          <div style={{fontSize:".86rem",color:"#3a4b4a",lineHeight:1.8,fontStyle:"italic"}}>{cfg.abordagem}</div>
-        </div>}
+        {(cfg.bio||cfg.abordagem) && <>
+          <SecHeader id="sobre" icon="✦" label="Sobre" />
+          {abertas.sobre && <div style={{padding:"18px 18px 8px"}}>
+            {cfg.bio && <div style={{fontSize:".9rem",color:"#2a3b3a",lineHeight:1.85,marginBottom:cfg.abordagem?16:0}}>{cfg.bio}</div>}
+            {cfg.abordagem && <div style={{padding:"14px 16px",background:`${cor}0d`,borderRadius:12,borderLeft:`4px solid ${cor}`}}>
+              <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:6}}>Abordagem</div>
+              <div style={{fontSize:".86rem",color:"#3a4b4a",lineHeight:1.8,fontStyle:"italic"}}>{cfg.abordagem}</div>
+            </div>}
+          </div>}
+        </>}
 
         {/* Serviços */}
-        {cfg.servicos?.length>0 && <div id="ms-servicos" style={{marginBottom:28}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:12}}>🌿 Serviços</div>
-          {cfg.servicos.map((s,i)=><ItemCard key={i} it={s} lista="servicos" />)}
-        </div>}
+        {cfg.servicos?.length>0 && <>
+          <SecHeader id="servicos" icon="🌿" label="Serviços" />
+          {abertas.servicos && <div style={{padding:"14px 14px 4px"}}>{cfg.servicos.map((s,i)=><ItemCard key={i} it={s} lista="servicos" />)}</div>}
+        </>}
 
         {/* Formações */}
-        {cfg.formacoes?.length>0 && <div id="ms-formacoes" style={{marginBottom:28}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:12}}>🎓 Formações & Workshops</div>
-          {cfg.formacoes.map((s,i)=><ItemCard key={i} it={s} lista="formacoes" />)}
-        </div>}
+        {cfg.formacoes?.length>0 && <>
+          <SecHeader id="formacoes" icon="🎓" label="Formações & Workshops" />
+          {abertas.formacoes && <div style={{padding:"14px 14px 4px"}}>{cfg.formacoes.map((s,i)=><ItemCard key={i} it={s} lista="formacoes" />)}</div>}
+        </>}
 
         {/* Atividades */}
-        {cfg.atividades?.length>0 && <div id="ms-atividades" style={{marginBottom:28}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:12}}>📝 Atividades & Inscrições</div>
-          {cfg.atividades.map((s,i)=><ItemCard key={i} it={s} lista="atividades" />)}
-        </div>}
+        {cfg.atividades?.length>0 && <>
+          <SecHeader id="atividades" icon="📝" label="Atividades & Inscrições" />
+          {abertas.atividades && <div style={{padding:"14px 14px 4px"}}>{cfg.atividades.map((s,i)=><ItemCard key={i} it={s} lista="atividades" />)}</div>}
+        </>}
 
         {/* Produtos */}
-        {cfg.produtos?.length>0 && <div id="ms-produtos" style={{marginBottom:28}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:12}}>🛍️ Produtos</div>
-          {cfg.produtos.map((s,i)=><ItemCard key={i} it={s} lista="produtos" />)}
-        </div>}
+        {cfg.produtos?.length>0 && <>
+          <SecHeader id="produtos" icon="🛍️" label="Produtos" />
+          {abertas.produtos && <div style={{padding:"14px 14px 4px"}}>{cfg.produtos.map((s,i)=><ItemCard key={i} it={s} lista="produtos" />)}</div>}
+        </>}
 
         {/* Testemunhos */}
-        {cfg.testemunhos?.length>0 && <div id="ms-testemunhos" style={{marginBottom:28}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:12}}>💬 Testemunhos</div>
-          {cfg.testemunhos.map((t,i)=>(
-            <div key={i} style={{background:"#fff",borderRadius:14,padding:16,marginBottom:10,borderLeft:`4px solid ${cor}`,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
-              <div style={{fontSize:".88rem",color:"#2a3b3a",fontStyle:"italic",lineHeight:1.7}}>"{t.texto}"</div>
-              {t.nome && <div style={{fontSize:".75rem",color:cor,marginTop:8,fontWeight:600}}>— {t.nome}</div>}
-              {t.foto && <img src={t.foto} style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",marginTop:8,border:`2px solid ${cor}30`}} />}
-            </div>
-          ))}
-        </div>}
+        {cfg.testemunhos?.length>0 && <>
+          <SecHeader id="testemunhos" icon="💬" label="Testemunhos" />
+          {abertas.testemunhos && <div style={{padding:"14px 14px 4px"}}>
+            {cfg.testemunhos.map((t,i)=>(
+              <div key={i} style={{background:"#fff",borderRadius:14,padding:16,marginBottom:10,borderLeft:`4px solid ${cor}`,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
+                <div style={{fontSize:".9rem",color:"#2a3b3a",fontStyle:"italic",lineHeight:1.7}}>"{t.texto}"</div>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
+                  {t.foto && <img src={t.foto} style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",border:`2px solid ${cor}30`}} />}
+                  {t.nome && <span style={{fontSize:".76rem",color:cor,fontWeight:600}}>— {t.nome}</span>}
+                </div>
+              </div>
+            ))}
+          </div>}
+        </>}
 
-        {/* Equipa com WhatsApp por perfil */}
-        {cfg.equipa?.length>0 && <div id="ms-equipa" style={{marginBottom:28}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:12}}>👥 A Nossa Equipa</div>
-          {cfg.equipa.map((m,i)=>(
-            <div key={i} style={{background:"#fff",borderRadius:14,padding:16,marginBottom:10,boxShadow:"0 1px 6px rgba(0,0,0,.04)",display:"flex",gap:14,alignItems:"flex-start"}}>
-              <div style={{width:64,height:64,borderRadius:"50%",background:corLight,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",border:`2px solid ${cor}50`,flexShrink:0}}>
-                {m.foto ? <img src={m.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <span style={{fontSize:"1.6rem"}}>{(m.nome||"?")[0]}</span>}
+        {/* Equipa */}
+        {cfg.equipa?.length>0 && <>
+          <SecHeader id="equipa" icon="👥" label="A Nossa Equipa" />
+          {abertas.equipa && <div style={{padding:"14px 14px 4px"}}>
+            {cfg.equipa.map((m,i)=>(
+              <div key={i} style={{background:"#fff",borderRadius:14,padding:16,marginBottom:10,boxShadow:"0 1px 6px rgba(0,0,0,.04)",display:"flex",gap:14,alignItems:"flex-start"}}>
+                <div style={{width:68,height:68,borderRadius:"50%",background:corLight,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",border:`2px solid ${cor}50`,flexShrink:0}}>
+                  {m.foto ? <img src={m.foto} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : <span style={{fontSize:"1.7rem"}}>{(m.nome||"?")[0]}</span>}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:"1rem",fontWeight:700,color:"#1a2e2c"}}>{m.nome}</div>
+                  <div style={{fontSize:".76rem",color:cor,fontWeight:600,marginBottom:6}}>{m.funcao}</div>
+                  {m.bio && <div style={{fontSize:".8rem",color:"#5a6e6c",lineHeight:1.6,marginBottom:8}}>{m.bio}</div>}
+                  {m.whatsapp && <a href={`https://wa.me/${m.whatsapp.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer"
+                    style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",borderRadius:20,background:"#25D36618",border:"1px solid #25D36650",color:"#128c52",fontSize:".76rem",fontWeight:600,textDecoration:"none"}}>
+                    📱 Contactar
+                  </a>}
+                </div>
               </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:"1rem",fontWeight:700,color:"#1a2e2c"}}>{m.nome}</div>
-                <div style={{fontSize:".75rem",color:cor,fontWeight:600,marginBottom:4}}>{m.funcao}</div>
-                {m.bio && <div style={{fontSize:".78rem",color:"#5a6e6c",lineHeight:1.6,marginBottom:8}}>{m.bio}</div>}
-                {m.whatsapp && <a href={`https://wa.me/${m.whatsapp.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer"
-                  style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",borderRadius:20,background:"#25D36618",border:"1px solid #25D36650",color:"#128c52",fontSize:".74rem",fontWeight:600,textDecoration:"none"}}>
-                  📱 Contactar
-                </a>}
-              </div>
-            </div>
-          ))}
-        </div>}
+            ))}
+          </div>}
+        </>}
 
         {/* Localização */}
-        {(cfg.morada||cfg.mapa_link) && <div style={{marginBottom:24}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:10}}>📍 Onde Estamos</div>
-          <div style={{background:"#fff",borderRadius:14,padding:16,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
-            {cfg.morada && <div style={{fontSize:".88rem",color:"#2a3b3a",marginBottom:cfg.mapa_link?12:0}}>{cfg.morada}</div>}
-            {cfg.mapa_link && <a href={cfg.mapa_link} target="_blank" rel="noopener noreferrer"
-              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:10,border:`1.5px solid ${cor}`,color:cor,fontSize:".78rem",fontWeight:600,textDecoration:"none"}}>🗺️ Ver no mapa</a>}
-          </div>
-        </div>}
+        {(cfg.morada||cfg.mapa_link) && <>
+          <SecHeader id="local" icon="📍" label="Onde Estamos" />
+          {abertas.local && <div style={{padding:"14px 14px 10px"}}>
+            <div style={{background:"#fff",borderRadius:14,padding:16,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
+              {cfg.morada && <div style={{fontSize:".9rem",color:"#2a3b3a",marginBottom:cfg.mapa_link?12:0}}>{cfg.morada}</div>}
+              {cfg.mapa_link && <a href={cfg.mapa_link} target="_blank" rel="noopener noreferrer"
+                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:10,border:`1.5px solid ${cor}`,color:cor,fontSize:".8rem",fontWeight:600,textDecoration:"none"}}>🗺️ Ver no mapa</a>}
+            </div>
+          </div>}
+        </>}
 
-        {/* Redes sociais — badges individuais com ícones */}
-        {cfg.redes?.filter(r=>r.link).length>0 && <div style={{marginBottom:20}}>
-          <div style={{fontSize:".65rem",color:cor,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:10}}>🔗 Redes Sociais</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {/* Rodapé — redes + horário + voltar ao topo */}
+        <div style={{padding:"20px 18px 16px",borderTop:"1px solid #eef3f3",background:"#fff"}}>
+          {cfg.redes?.filter(r=>r.link).length>0 && <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginBottom:14}}>
             {cfg.redes.filter(r=>r.link).map((r,i)=>(
               <a key={i} href={r.link} target="_blank" rel="noopener noreferrer"
-                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:20,background:"#fff",border:"1.5px solid #e0ecec",color:"#3a4b4a",fontSize:".8rem",fontWeight:600,textDecoration:"none",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
+                style={{display:"inline-flex",alignItems:"center",gap:5,padding:"7px 14px",borderRadius:20,background:"#f0f5f5",color:"#3a4b4a",fontSize:".8rem",fontWeight:600,textDecoration:"none"}}>
                 {REDE_ICONES[r.rede]||"🔗"} {r.rede}
               </a>
             ))}
+          </div>}
+          {cfg.horario && <div style={{textAlign:"center",fontSize:".78rem",color:"#8a9a98",marginBottom:14}}>🕐 {cfg.horario}</div>}
+          <div style={{textAlign:"center"}}>
+            <button onClick={()=>topRef.current?.scrollIntoView({behavior:"smooth"})}
+              style={{padding:"8px 20px",borderRadius:20,border:`1px solid ${cor}40`,background:"transparent",color:cor,fontSize:".78rem",fontWeight:600,cursor:"pointer"}}>
+              ↑ Voltar ao topo
+            </button>
           </div>
-        </div>}
+        </div>
 
-        {cfg.horario && <div style={{textAlign:"center",fontSize:".78rem",color:"#8a9a98",marginTop:10,padding:"10px 0"}}>🕐 {cfg.horario}</div>}
+        <div style={{textAlign:"center",padding:"10px 0",fontSize:".62rem",color:"#c8d4d2"}}>Criado com VitalDoctor</div>
       </div>
-
-      <div style={{background:"#fff",borderTop:"1px solid #eef3f3",padding:"12px 0",textAlign:"center",fontSize:".62rem",color:"#bcc8c6"}}>Criado com VitalDoctor</div>
     </div>
   );
 }
