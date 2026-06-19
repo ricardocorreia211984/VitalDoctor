@@ -5851,6 +5851,531 @@ function SessõesConfig({ user, onAtualizar }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// PAINEL PRINCIPAL REFATORIZADO (VER + EDITAR + MENU LATERAL)
+// ═══════════════════════════════════════════════════════════════════
+
+function PainelPrincipal({ user, org }) {
+  const [modo, setModo] = useState('dashboard');
+  const [modoEdicao, setModoEdicao] = useState(false);
+
+  if (!org) return null;
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#050810' }}>
+      {/* MENU LATERAL */}
+      <div style={{
+        width: '220px',
+        background: 'linear-gradient(180deg, #0a1e2e 0%, #061428 100%)',
+        borderRight: '1px solid #1a3a5c',
+        padding: '20px 0',
+        maxHeight: '100vh',
+        overflowY: 'auto',
+        position: 'sticky',
+        top: 0
+      }}>
+        <div style={{ padding: '0 12px 24px 12px', borderBottom: '1px solid #1a3a5c', marginBottom: 12 }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#00c6b8', textTransform: 'uppercase', marginBottom: 4 }}>Menu</div>
+          <div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>{org.nome}</div>
+        </div>
+
+        {[
+          { id: 'dashboard', icon: '📊', label: 'Dashboard', sub: 'Visão geral' },
+          { id: 'consultar', icon: '📋', label: 'Nova Consulta', sub: 'Iniciar' },
+          { id: 'pacientes', icon: '👥', label: 'Pacientes', sub: 'Gestão' },
+          { id: 'farmacia', icon: '🌿', label: 'Farmácia', sub: 'Conhecimento' },
+          { id: 'relatorios', icon: '📄', label: 'Relatórios', sub: 'Histórico' },
+          { id: 'configuracoes', icon: '⚙️', label: 'Config.', sub: 'Dados' },
+        ].map(item => (
+          <button
+            key={item.id}
+            onClick={() => { setModo(item.id); setModoEdicao(false); }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              textAlign: 'left',
+              background: modo === item.id ? 'rgba(0, 198, 184, 0.15)' : 'transparent',
+              border: modo === item.id ? '1px solid #00c6b8' : 'none',
+              color: modo === item.id ? '#00c6b8' : '#8ba3c0',
+              cursor: 'pointer',
+              marginBottom: 2,
+              borderRadius: 6,
+              fontSize: '0.75rem',
+              fontWeight: modo === item.id ? 700 : 500,
+              transition: 'all 0.15s'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+              <span style={{ fontSize: '0.9rem' }}>{item.icon}</span>
+              <div style={{ fontWeight: 700 }}>{item.label}</div>
+            </div>
+            <div style={{ fontSize: '0.65rem', color: '#3d5a7a', marginLeft: 26 }}>{item.sub}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* CONTEÚDO */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* HEADER */}
+        <div style={{
+          background: 'linear-gradient(135deg, #061428, #0a1e2e)',
+          borderBottom: '1px solid #1a3a5c',
+          padding: '12px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10
+        }}>
+          <div>
+            <h1 style={{ fontSize: '1.1rem', color: '#dde4f0', margin: 0, marginBottom: 2, fontWeight: 700 }}>
+              {modo === 'dashboard' && '📊 Dashboard'}
+              {modo === 'consultar' && '📋 Nova Consulta'}
+              {modo === 'pacientes' && '👥 Pacientes'}
+              {modo === 'farmacia' && '🌿 A Farmácia'}
+              {modo === 'relatorios' && '📄 Relatórios'}
+              {modo === 'configuracoes' && '⚙️ Configurações'}
+            </h1>
+            <div style={{ fontSize: '0.65rem', color: '#3d5a7a' }}>
+              {modoEdicao ? '✏️ Modo Edição' : '👁️ Modo Visualização'}
+            </div>
+          </div>
+
+          {['dashboard', 'pacientes', 'farmacia', 'configuracoes'].includes(modo) && (
+            <button
+              onClick={() => setModoEdicao(!modoEdicao)}
+              style={{
+                padding: '8px 14px',
+                background: modoEdicao ? '#d4a574' : '#00c6b8',
+                color: '#050810',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '0.7rem',
+                transition: 'all 0.2s'
+              }}
+            >
+              {modoEdicao ? '✏️ Editar' : '👁️ Ver'}
+            </button>
+          )}
+        </div>
+
+        {/* CONTEÚDO PRINCIPAL */}
+        <div style={{ padding: '20px 24px' }}>
+          {modo === 'dashboard' && <DashboardUniversal user={user} modoEdicao={modoEdicao} />}
+          {modo === 'consultar' && <NovaConsultaRefatorizada user={user} />}
+          {modo === 'pacientes' && <GestorPacientes user={user} modoEdicao={modoEdicao} />}
+          {modo === 'farmacia' && <FarmaciaRefatorizada user={user} modoEdicao={modoEdicao} />}
+          {modo === 'relatorios' && <div>📄 Relatórios (em desenvolvimento)</div>}
+          {modo === 'configuracoes' && <ConfiguracoesPessoais user={user} modoEdicao={modoEdicao} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD UNIVERSAL
+// ═══════════════════════════════════════════════════════════════════
+function DashboardUniversal({ user, modoEdicao }) {
+  const [kpis, setKpis] = useState({ totalConsultas: 0, consultasHoje: 0, pacientes: 0 });
+  const [materiais, setMateriais] = useState([
+    { id: 1, titulo: 'Questionnaire Pré-Consulta', tipo: 'pdf', descricao: 'Para paciente preencher em casa' },
+    { id: 2, titulo: 'Escudos Emocionais', tipo: 'form', descricao: 'Formulário interativo' },
+    { id: 3, titulo: 'Protocolo de Relaxamento', tipo: 'video', descricao: 'Vídeo guiado' },
+  ]);
+
+  useEffect(() => {
+    sb.from("consultas").select("id").eq("terapeuta_id", user.id)
+      .then(({ data }) => {
+        setKpis({
+          totalConsultas: data?.length || 0,
+          consultasHoje: data?.filter(c => new Date(c.created_at).toDateString() === new Date().toDateString()).length || 0,
+          pacientes: 0
+        });
+      });
+  }, [user.id]);
+
+  return (
+    <div className="fade">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 16,
+        marginBottom: 24
+      }}>
+        {[
+          { titulo: 'Total Consultas', valor: kpis.totalConsultas, icon: '📊' },
+          { titulo: 'Consultas Hoje', valor: kpis.consultasHoje, icon: '⏰' },
+          { titulo: 'Pacientes Ativos', valor: kpis.pacientes, icon: '👥' },
+        ].map((k, i) => (
+          <div key={i} style={{
+            background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+            border: '1px solid #1a3a5c',
+            borderRadius: 8,
+            padding: 16,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.6rem', marginBottom: 6 }}>{k.icon}</div>
+            <div style={{ fontSize: '2rem', fontWeight: 700, color: '#00c6b8', marginBottom: 3 }}>{k.valor}</div>
+            <div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>{k.titulo}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+        border: '1px solid #1a3a5c',
+        borderRadius: 8,
+        padding: 16
+      }}>
+        <div style={{
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          color: '#00c6b8',
+          marginBottom: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          📚 Materiais Universais
+          {modoEdicao && <button className="btn btn-s btn-sm" style={{ width: 'auto' }}>➕ Adicionar</button>}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+          {materiais.map(m => (
+            <div key={m.id} style={{
+              background: '#050810',
+              border: '1px solid #1a3a5c',
+              borderRadius: 6,
+              padding: 10,
+              cursor: 'pointer'
+            }}>
+              <div style={{ fontSize: '1.6rem', marginBottom: 6 }}>
+                {m.tipo === 'pdf' && '📄'}
+                {m.tipo === 'form' && '📋'}
+                {m.tipo === 'video' && '🎥'}
+              </div>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#dde4f0', marginBottom: 3 }}>{m.titulo}</div>
+              <div style={{ fontSize: '0.65rem', color: '#8ba3c0', marginBottom: 8 }}>{m.descricao}</div>
+              
+              {modoEdicao && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.6rem' }}>✏️</button>
+                  <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.6rem', background: '#d9534f' }}>🗑️</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NOVA CONSULTA REFATORIZADA (sem branco)
+// ═══════════════════════════════════════════════════════════════════
+function NovaConsultaRefatorizada({ user }) {
+  const [modulos, setModulos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      sb.from("custom_modules").select("*").eq("terapeuta_id", user.id).eq("publicado", true),
+    ]).then(([modRes]) => {
+      const modFiltrados = (modRes.data || []).filter(m =>
+        !m.bloqueado_com || user.has_exclusive_therapy_access === true
+      );
+      setModulos(modFiltrados);
+      setLoading(false);
+    });
+  }, [user?.id, user?.has_exclusive_therapy_access]);
+
+  if (loading) return <div className="fade" style={{ padding: 20, textAlign: 'center' }}>⏳ Carregando...</div>;
+
+  return (
+    <div className="fade">
+      <div style={{
+        background: 'linear-gradient(135deg, #061428, #0a1e2e)',
+        border: '1px solid #1a3a5c',
+        borderRadius: 8,
+        padding: '16px 20px',
+        marginBottom: 20,
+        textAlign: 'center'
+      }}>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: '#dde4f0', marginBottom: 6 }}>
+          Escolha o Tipo de Atendimento
+        </div>
+        <div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>
+          {modulos.length > 0 ? 'Selecione a sessão que pretende iniciar' : 'Nenhum módulo disponível'}
+        </div>
+      </div>
+
+      {modulos.length === 0 ? (
+        <div style={{
+          background: '#050810',
+          border: '2px dashed #1a3a5c',
+          borderRadius: 8,
+          padding: 32,
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📋</div>
+          <div style={{ fontSize: '0.8rem', color: '#8ba3c0', marginBottom: 12 }}>
+            Nenhum módulo de atendimento disponível
+          </div>
+          <button className="btn btn-p" style={{ width: 'auto' }}>
+            Criar Primeiro Módulo
+          </button>
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 14
+        }}>
+          {modulos.map(m => (
+            <button
+              key={m.id}
+              onClick={() => console.log("Iniciando:", m.nome)}
+              style={{
+                background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+                border: '2px solid #1a3a5c',
+                borderRadius: 8,
+                padding: 16,
+                textAlign: 'left',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                color: '#dde4f0'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#00c6b8';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 198, 184, 0.15)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#1a3a5c';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ fontSize: '1.8rem', marginBottom: 10 }}>📋</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 6 }}>{m.nome}</div>
+              <div style={{ fontSize: '0.75rem', color: '#8ba3c0', marginBottom: 10 }}>
+                {m.descricao || 'Módulo personalizado'}
+              </div>
+              <div style={{
+                fontSize: '0.65rem',
+                background: 'rgba(0, 198, 184, 0.1)',
+                padding: '4px 8px',
+                borderRadius: 3,
+                display: 'inline-block',
+                color: '#00c6b8'
+              }}>
+                {m.bloqueado_com ? '🔒 Acesso Restrito' : '✅ Disponível'}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GESTOR DE PACIENTES
+// ═══════════════════════════════════════════════════════════════════
+function GestorPacientes({ user, modoEdicao }) {
+  const [pacientes, setPacientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    sb.from("pacientes").select("*").eq("terapeuta_id", user.id).order("nome")
+      .then(({ data }) => {
+        setPacientes(data || []);
+        setLoading(false);
+      });
+  }, [user.id]);
+
+  if (loading) return <div className="fade">⏳ Carregando...</div>;
+
+  return (
+    <div className="fade">
+      <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+        <input type="text" className="inp" placeholder="Procurar paciente..." style={{ flex: 1 }} />
+        <button className="btn btn-p" style={{ width: 'auto' }}>➕ Novo</button>
+      </div>
+
+      {pacientes.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px 20px', color: '#8ba3c0', fontSize: '0.8rem' }}>
+          Nenhum paciente cadastrado
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: 12
+        }}>
+          {pacientes.map(p => (
+            <div key={p.id} style={{
+              background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+              border: '1px solid #1a3a5c',
+              borderRadius: 8,
+              padding: 12
+            }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#00c6b8', marginBottom: 6 }}>{p.nome}</div>
+              <div style={{ fontSize: '0.7rem', color: '#8ba3c0', marginBottom: 10 }}>
+                📞 {p.telefone}<br/>📧 {p.email}
+              </div>
+              
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.65rem' }}>📋 Iniciar</button>
+                {modoEdicao && (
+                  <>
+                    <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.65rem' }}>✏️</button>
+                    <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.65rem', background: '#d9534f' }}>🗑️</button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FARMACIA REFATORIZADA
+// ═══════════════════════════════════════════════════════════════════
+function FarmaciaRefatorizada({ user, modoEdicao }) {
+  const [ervas] = useState([
+    { id: 1, nome: 'Camomila', categoria: 'Calmantes', propriedades: 'Relaxamento, digestão' },
+    { id: 2, nome: 'Melissa', categoria: 'Calmantes', propriedades: 'Ansiedade, stress' },
+  ]);
+  const [categoria, setCategoria] = useState('Todas');
+
+  return (
+    <div className="fade">
+      <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+        <select className="inp" value={categoria} onChange={e => setCategoria(e.target.value)} style={{ flex: 1 }}>
+          <option>Todas</option>
+          <option>Calmantes</option>
+          <option>Digestivas</option>
+        </select>
+        {modoEdicao && <button className="btn btn-p" style={{ width: 'auto' }}>➕ Adicionar</button>}
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+        gap: 12
+      }}>
+        {ervas.map(e => (
+          <div key={e.id} style={{
+            background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+            border: '1px solid #1a3a5c',
+            borderRadius: 8,
+            padding: 12
+          }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#00c6b8', marginBottom: 3 }}>
+              {modoEdicao ? (
+                <input type="text" className="inp" defaultValue={e.nome} style={{ fontSize: '0.75rem', marginBottom: 6 }} />
+              ) : (
+                e.nome
+              )}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: '#8ba3c0', marginBottom: 8 }}>
+              {modoEdicao ? (
+                <input type="text" className="inp" defaultValue={e.categoria} style={{ fontSize: '0.65rem' }} />
+              ) : (
+                e.categoria
+              )}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#dde4f0' }}>
+              {modoEdicao ? (
+                <textarea className="inp" defaultValue={e.propriedades} style={{ fontSize: '0.65rem', minHeight: '50px' }} />
+              ) : (
+                e.propriedades
+              )}
+            </div>
+
+            {modoEdicao && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.6rem' }}>💾 Guardar</button>
+                <button className="btn btn-s btn-sm" style={{ flex: 1, fontSize: '0.6rem', background: '#d9534f' }}>🗑️</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIGURAÇÕES PESSOAIS
+// ═══════════════════════════════════════════════════════════════════
+function ConfiguracoesPessoais({ user, modoEdicao }) {
+  const [form, setForm] = useState({
+    nome: user?.user_metadata?.nome || '',
+    telefone: user?.user_metadata?.telefone || '',
+    email: user?.email || '',
+    especialidade: user?.user_metadata?.especialidade || ''
+  });
+
+  return (
+    <div className="fade">
+      <div style={{
+        background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+        border: '1px solid #1a3a5c',
+        borderRadius: 8,
+        padding: 20,
+        maxWidth: '500px'
+      }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00c6b8', marginBottom: 16 }}>
+          👤 Dados Pessoais
+        </div>
+
+        {!modoEdicao ? (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <label className="lbl" style={{ fontSize: '0.7rem' }}>Nome</label>
+              <div style={{ fontSize: '0.8rem', color: '#dde4f0', padding: '8px 10px', background: '#050810', borderRadius: 6 }}>
+                {form.nome}
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label className="lbl" style={{ fontSize: '0.7rem' }}>Email</label>
+              <div style={{ fontSize: '0.8rem', color: '#dde4f0', padding: '8px 10px', background: '#050810', borderRadius: 6 }}>
+                {form.email}
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label className="lbl" style={{ fontSize: '0.7rem' }}>Telefone</label>
+              <div style={{ fontSize: '0.8rem', color: '#dde4f0', padding: '8px 10px', background: '#050810', borderRadius: 6 }}>
+                {form.telefone}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <label className="lbl" style={{ fontSize: '0.7rem' }}>Nome</label>
+              <input className="inp" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label className="lbl" style={{ fontSize: '0.7rem' }}>Telefone</label>
+              <input className="inp" value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} />
+            </div>
+            <button className="btn btn-p" style={{ width: '100%', fontSize: '0.75rem' }}>💾 Guardar</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Clinica({ user, onUpdate }) {
   const [org, setOrg] = useState(null);
   const [equipa, setEquipa] = useState([]);
@@ -5974,60 +6499,8 @@ function Clinica({ user, onUpdate }) {
   if (org) {
     return (
       <div className="fade">
-        {/* DASHBOARD */}
-        <DashboardClinica user={user} org={org} />
-        
-        {/* SISTEMA DE LEMBRETES */}
-        <SistemaLembretes user={user} />
-        
-        {/* SISTEMA WHATSAPP */}
-        <SistemaWhatsApp user={user} />
-        
-        {/* CONFIGURAÇÃO DE NOMES DAS SESSÕES */}
-        <SessõesConfig user={user} onAtualizar={() => setPerfil({...user})} />
-        
-        {msg && <div className="al al-s">{msg}</div>}
-        <div className="card">
-          <div className="card-t">🏥 {org.nome}</div>
-          <div style={{fontSize:".72rem",color:"#7a98b8",marginBottom:4}}>
-            {user.is_org_owner ? "És o dono desta clínica — vês todos os pacientes da equipa." : "És profissional desta clínica — vês os teus pacientes."}
-          </div>
-          {user.nome_profissional && <div style={{fontSize:".68rem",color:"#3d5a7a"}}>O teu nome de atendimento: <strong style={{color:"#5ae0d8"}}>{user.nome_profissional}</strong></div>}
-        </div>
-
-        <div className="card">
-          <button className="btn btn-p" style={{width:"100%"}} onClick={abrirEditorPagina}>✏️ Editar página pública</button>
-          {cfgPag?.site_slug && <div style={{fontSize:".64rem",color:"#3d5a7a",marginTop:8,textAlign:"center"}}>Link: <strong style={{color:"#00c6b8"}}>{window.location.origin}/?site={cfgPag.site_slug}</strong></div>}
-        </div>
-
-        {user.is_org_owner && (
-          <>
-            <div className="card">
-              <div className="card-t">🔑 Código de Convite</div>
-              <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:8}}>Partilha este código com os profissionais. Cada um cria a sua conta e introduz o código para se juntar — sem partilhar senhas.</div>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <div style={{flex:1,padding:"10px 14px",background:"#050810",border:"1px solid #1a4a5c",borderRadius:8,fontSize:"1rem",fontWeight:700,color:"#00c6b8",letterSpacing:2,textAlign:"center"}}>{org.codigo_convite}</div>
-                <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={()=>{navigator.clipboard?.writeText(org.codigo_convite);setMsg("Código copiado!");setTimeout(()=>setMsg(""),2000);}}>📋 Copiar</button>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-t">👥 Equipa ({equipa.length})</div>
-              {equipa.length===0 && <div style={{fontSize:".7rem",color:"#3d5a7a"}}>Ainda só tu. Partilha o código de convite.</div>}
-              {equipa.map(p=>(
-                <div key={p.id} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 0",borderBottom:"1px solid #0d1828"}}>
-                  <div style={{width:34,height:34,borderRadius:"50%",background:"#0d2535",display:"flex",alignItems:"center",justifyContent:"center",color:"#00c6b8",fontWeight:700,flexShrink:0}}>{(p.nome_profissional||p.nome||"?")[0].toUpperCase()}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:".74rem",color:"#b0c4d8",fontWeight:600}}>{p.nome_profissional||p.nome} {p.is_org_owner&&"👑"}</div>
-                    <div style={{fontSize:".6rem",color:"#3d5a7a"}}>{p.email}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={sairClinica}>Sair da clínica</button>
+        {/* NOVO PAINEL PRINCIPAL COM NAVEGAÇÃO CLARA */}
+        <PainelPrincipal user={user} org={org} />
       </div>
     );
   }
