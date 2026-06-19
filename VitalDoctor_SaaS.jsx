@@ -5855,11 +5855,92 @@ function SessõesConfig({ user, onAtualizar }) {
 // PAINEL PRINCIPAL REFATORIZADO (VER + EDITAR + MENU LATERAL)
 // ═══════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════
+// SUPER ADMIN PANEL
+// ═══════════════════════════════════════════════════════════════════
+
+function PainelSuperAdmin({ user }) {
+  const [abaSuperAdmin, setAbaSuperAdmin] = useState('overview');
+  const [modoEdicaoAdmin, setModoEdicaoAdmin] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [modulos, setModulos] = useState([]);
+
+  useEffect(() => {
+    Promise.all([
+      sb.from("profiles").select("*").order("created_at"),
+      sb.from("custom_modules").select("*").order("criado_em")
+    ]).then(([usersRes, modsRes]) => {
+      setUsers(usersRes.data || []);
+      setModulos(modsRes.data || []);
+    });
+  }, []);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '100vh', gap: 0, background: '#050810' }}>
+      <div style={{ background: 'linear-gradient(180deg, #0d1828 0%, #061428 100%)', borderRight: '2px solid #d4a574', padding: '20px 0', maxHeight: '100vh', overflowY: 'auto' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '2px solid #d4a574', marginBottom: 12, fontWeight: 700, color: '#d4a574', fontSize: '0.8rem', textAlign: 'center' }}>👑 SUPER ADMIN</div>
+        {['overview', 'usuarios', 'modulos'].map(item => (
+          <button key={item} onClick={() => setAbaSuperAdmin(item)} style={{ width: '100%', padding: '10px 12px', textAlign: 'left', background: abaSuperAdmin === item ? 'rgba(212, 165, 116, 0.2)' : 'transparent', border: 'none', borderLeft: abaSuperAdmin === item ? '3px solid #d4a574' : 'none', color: abaSuperAdmin === item ? '#d4a574' : '#8ba3c0', cursor: 'pointer', fontSize: '0.75rem', fontWeight: abaSuperAdmin === item ? 700 : 500 }}>
+            {item === 'overview' && '📊 Visão'}
+            {item === 'usuarios' && '👥 Users'}
+            {item === 'modulos' && '📦 Mods'}
+          </button>
+        ))}
+      </div>
+      <div style={{ overflowY: 'auto' }}>
+        <div style={{ background: 'linear-gradient(135deg, #0d1828, #061428)', borderBottom: '2px solid #d4a574', padding: '12px 24px', position: 'sticky', top: 0, zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '1rem', color: '#d4a574', margin: 0, fontWeight: 700 }}>
+            {abaSuperAdmin === 'overview' && '📊 Visão Geral'}
+            {abaSuperAdmin === 'usuarios' && '👥 Utilizadores'}
+            {abaSuperAdmin === 'modulos' && '📦 Módulos'}
+          </h1>
+          {['usuarios', 'modulos'].includes(abaSuperAdmin) && <button onClick={() => setModoEdicaoAdmin(!modoEdicaoAdmin)} style={{ padding: '8px 14px', background: modoEdicaoAdmin ? '#d4a574' : '#00c6b8', color: '#050810', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}>{modoEdicaoAdmin ? '✏️ Editar' : '👁️ Ver'}</button>}
+        </div>
+        <div style={{ padding: '20px 24px' }}>
+          {abaSuperAdmin === 'overview' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              <div style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '2px solid #d4a574', borderRadius: 8, padding: 16, textAlign: 'center' }}><div style={{ fontSize: '2rem' }}>👥</div><div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#d4a574' }}>{users.length}</div><div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>Utilizadores</div></div>
+              <div style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '2px solid #d4a574', borderRadius: 8, padding: 16, textAlign: 'center' }}><div style={{ fontSize: '2rem' }}>📦</div><div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#d4a574' }}>{modulos.length}</div><div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>Módulos</div></div>
+              <div style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '2px solid #d4a574', borderRadius: 8, padding: 16, textAlign: 'center' }}><div style={{ fontSize: '2rem' }}>🟢</div><div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#d4a574' }}>✅</div><div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>Online</div></div>
+            </div>
+          )}
+          {abaSuperAdmin === 'usuarios' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+              {users.map(u => (
+                <div key={u.id} style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '1px solid #d4a574', borderRadius: 6, padding: 10 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d4a574' }}>{u.nome_profissional || u.nome}</div>
+                  <div style={{ fontSize: '0.65rem', color: '#8ba3c0' }}>{u.email.slice(0, 16)}...</div>
+                  {modoEdicaoAdmin && <button className="btn btn-s btn-sm" style={{ marginTop: 8, width: '100%', fontSize: '0.6rem' }}>{u.has_exclusive_therapy_access ? '🔒 Block' : '🔓 Allow'}</button>}
+                </div>
+              ))}
+            </div>
+          )}
+          {abaSuperAdmin === 'modulos' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+              {modulos.map(m => (
+                <div key={m.id} style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '1px solid #d4a574', borderRadius: 6, padding: 10 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d4a574' }}>{m.nome}</div>
+                  <div style={{ fontSize: '0.65rem', color: '#8ba3c0' }}>{m.bloqueado_com ? `🔒 ${m.bloqueado_com}` : '✅ Pub'}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PainelPrincipal({ user, org }) {
   const [modo, setModo] = useState('dashboard');
   const [modoEdicao, setModoEdicao] = useState(false);
 
   if (!org) return null;
+  
+  // Se Super Admin clica em admin, mostra painel especial
+  if (user?.email === 'ricardocorreia.211984@gmail.com' && modo === 'admin') {
+    return <PainelSuperAdmin user={user} />;
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#050810' }}>
@@ -5880,12 +5961,15 @@ function PainelPrincipal({ user, org }) {
         </div>
 
         {[
-          { id: 'dashboard', icon: '📊', label: 'Dashboard', sub: 'Visão geral' },
+          { id: 'dashboard', icon: '📊', label: 'Dashboard', sub: 'Templates' },
           { id: 'consultar', icon: '📋', label: 'Nova Consulta', sub: 'Iniciar' },
           { id: 'pacientes', icon: '👥', label: 'Pacientes', sub: 'Gestão' },
           { id: 'farmacia', icon: '🌿', label: 'Farmácia', sub: 'Conhecimento' },
           { id: 'relatorios', icon: '📄', label: 'Relatórios', sub: 'Histórico' },
           { id: 'configuracoes', icon: '⚙️', label: 'Config.', sub: 'Dados' },
+          ...(user?.email === 'ricardocorreia.211984@gmail.com' ? [
+            { id: 'admin', icon: '👑', label: 'Super Admin', sub: 'Controlo' }
+          ] : [])
         ].map(item => (
           <button
             key={item.id}
@@ -5964,7 +6048,7 @@ function PainelPrincipal({ user, org }) {
 
         {/* CONTEÚDO PRINCIPAL */}
         <div style={{ padding: '20px 24px' }}>
-          {modo === 'dashboard' && <DashboardUniversal user={user} modoEdicao={modoEdicao} />}
+          {modo === 'dashboard' && <DashboardComTemplates user={user} modoEdicao={modoEdicao} />}
           {modo === 'consultar' && <NovaConsultaRefatorizada user={user} />}
           {modo === 'pacientes' && <GestorPacientes user={user} modoEdicao={modoEdicao} />}
           {modo === 'farmacia' && <FarmaciaRefatorizada user={user} modoEdicao={modoEdicao} />}
@@ -5979,6 +6063,211 @@ function PainelPrincipal({ user, org }) {
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD UNIVERSAL
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD COM TEMPLATES PRONTOS
+// ═══════════════════════════════════════════════════════════════════
+
+function DashboardComTemplates({ user, modoEdicao }) {
+  const [abaDashboard, setAbaDashboard] = useState('templates');
+  const [templateSelecionado, setTemplateSelecionado] = useState(null);
+  const [templates] = useState([
+    {
+      id: 'consulta_unica',
+      titulo: 'Consulta Única - Template Universal',
+      descricao: 'Atendimento completo em uma sessão. Adaptável a qualquer terapia.',
+      icon: '🩺',
+      passos: [
+        { num: 1, nome: 'Acolhimento', tempo: '10 min' },
+        { num: 2, nome: 'Questionnaire Inicial', tempo: '15 min' },
+        { num: 3, nome: 'Avaliação/Diagnóstico', tempo: '20 min' },
+        { num: 4, nome: 'Protocolo Terapêutico', tempo: '30 min' },
+        { num: 5, nome: 'Devolutiva', tempo: '10 min' },
+      ]
+    },
+    {
+      id: 'pack_3',
+      titulo: 'Pack 3 Sessões - Template Universal',
+      descricao: 'Tratamento estruturado em 3 encontros. Ideal para trabalho profundo.',
+      icon: '📋',
+      sessoes: [
+        { num: 1, nome: 'Avaliação Inicial', duracao: '60 min' },
+        { num: 2, nome: 'Mapeamento Profundo', duracao: '60 min' },
+        { num: 3, nome: 'Consolidação', duracao: '60 min' },
+      ]
+    },
+    {
+      id: 'ficha_anamnese',
+      titulo: 'Ficha de Anamnese Completa',
+      descricao: 'Coleta estruturada de informações. Customizável por terapeuta.',
+      icon: '📝',
+      secoes: ['Dados Pessoais', 'Queixa Principal', 'Histórico Médico', 'Contexto Emocional', 'Estilo de Vida']
+    },
+    {
+      id: 'questionario_escudos',
+      titulo: 'Questionário de Escudos Emocionais',
+      descricao: 'Avalia mecanismos de proteção emocional. Agnóstico.',
+      icon: '🛡️',
+      questoes: [
+        'Tende a evitar conflitos?',
+        'Dificuldade em expressar emoções?',
+        'Usa humor para evitar problemas?',
+        'Tende a intelectualizar emoções?',
+        'Dificuldade em pedir ajuda?',
+      ]
+    },
+  ]);
+
+  return (
+    <div className="fade" style={{ minHeight: '100vh' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, borderBottom: '1px solid #1a3a5c', paddingBottom: 12 }}>
+        {['templates', 'criar'].map(aba => (
+          <button
+            key={aba}
+            onClick={() => setAbaDashboard(aba)}
+            style={{
+              padding: '8px 16px',
+              background: abaDashboard === aba ? 'rgba(0, 198, 184, 0.15)' : 'transparent',
+              border: abaDashboard === aba ? '1px solid #00c6b8' : 'none',
+              color: abaDashboard === aba ? '#00c6b8' : '#8ba3c0',
+              cursor: 'pointer',
+              borderRadius: 6,
+              fontSize: '0.8rem',
+              fontWeight: abaDashboard === aba ? 700 : 500
+            }}
+          >
+            {aba === 'templates' && '📚 Templates Prontos'}
+            {aba === 'criar' && '✨ Criar Novo'}
+          </button>
+        ))}
+      </div>
+
+      {abaDashboard === 'templates' && !templateSelecionado && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {templates.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTemplateSelecionado(t)}
+              style={{
+                background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+                border: '2px solid #1a3a5c',
+                borderRadius: 8,
+                padding: 16,
+                textAlign: 'left',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                color: '#dde4f0'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#00c6b8';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 198, 184, 0.15)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#1a3a5c';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: 10 }}>{t.icon}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#00c6b8', marginBottom: 6 }}>
+                {t.titulo}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#8ba3c0' }}>
+                {t.descricao}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {templateSelecionado && (
+        <div>
+          <button
+            onClick={() => setTemplateSelecionado(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#00c6b8',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              marginBottom: 16,
+              fontWeight: 700
+            }}
+          >
+            ← Voltar aos Templates
+          </button>
+
+          <div style={{
+            background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+            border: '1px solid #00c6b8',
+            borderRadius: 8,
+            padding: 20
+          }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>{templateSelecionado.icon}</div>
+            <h2 style={{ fontSize: '1.1rem', color: '#dde4f0', margin: 0, marginBottom: 6 }}>
+              {templateSelecionado.titulo}
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: '#8ba3c0', margin: 0, marginBottom: 16 }}>
+              {templateSelecionado.descricao}
+            </p>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button className="btn btn-p" style={{ width: 'auto', fontSize: '0.7rem' }}>
+                📋 Duplicar
+              </button>
+              <button className="btn btn-s" style={{ width: 'auto', fontSize: '0.7rem' }}>
+                ✏️ Editar
+              </button>
+              <button className="btn btn-s" style={{ width: 'auto', fontSize: '0.7rem', background: '#d9534f' }}>
+                🗑️ Deletar
+              </button>
+            </div>
+
+            {templateSelecionado.passos && (
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#00c6b8', marginBottom: 12 }}>
+                  📋 Passos
+                </div>
+                {templateSelecionado.passos.map((p, i) => (
+                  <div key={i} style={{
+                    background: '#050810',
+                    border: '1px solid #1a3a5c',
+                    borderRadius: 6,
+                    padding: 10,
+                    marginBottom: 8,
+                    fontSize: '0.75rem'
+                  }}>
+                    <div style={{ fontWeight: 700, color: '#00c6b8' }}>Passo {p.num}: {p.nome} ({p.tempo})</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {abaDashboard === 'criar' && (
+        <div style={{
+          background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+          border: '1px solid #00c6b8',
+          borderRadius: 8,
+          padding: 20,
+          maxWidth: '500px'
+        }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#00c6b8', marginBottom: 16 }}>
+            ✨ Criar Template Novo
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label className="lbl" style={{ fontSize: '0.7rem' }}>Nome</label>
+            <input className="inp" placeholder="Ex: Consulta Especial" />
+          </div>
+          <button className="btn btn-p" style={{ width: '100%', fontSize: '0.75rem' }}>
+            ✨ Criar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DashboardUniversal({ user, modoEdicao }) {
   const [kpis, setKpis] = useState({ totalConsultas: 0, consultasHoje: 0, pacientes: 0 });
   const [materiais, setMateriais] = useState([
