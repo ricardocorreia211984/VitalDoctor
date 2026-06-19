@@ -2225,7 +2225,7 @@ function EditorModulo({ modulo, user, onSalvar, onVoltar }) {
           <label className="lbl">Critérios de avaliação (um por linha)</label>
           <textarea className="inp mb8" rows={4} value={(cfg.biblioteca?.criterios || []).join("\n")} 
             onChange={e => setCfg({...cfg, biblioteca: {...cfg.biblioteca, criterios: e.target.value.split("\n").filter(x => x.trim())}}) } 
-            placeholder="Ex:&#10;Epífise&#10;Hipotálamo&#10;Energia vital&#10;..." />
+            placeholder="Ex:&#10;Item 1&#10;Item 2&#10;Item 3&#10;..." />
           
           <label className="lbl">Protocolos (um por linha, com ação)</label>
           <textarea className="inp mb8" rows={4} value={(cfg.biblioteca?.protocolos || []).join("\n")} 
@@ -3715,7 +3715,7 @@ function gerarRelatorioFiel(tipo, dados, pacienteNome) {
       linhas.push(`LADO MAPEADO: ${p.lado}`);
       if (p.pv?.length) linhas.push(`  Pontos Vitais: ${p.pv.join(", ")}`);
       if (p.pe?.length) linhas.push(`  Pontos de Entrada: ${p.pe.join(", ")}`);
-      if (p.zona)       linhas.push(`  Lateralidade/Zona: ${p.zona}`);
+      if (p.zona)       linhas.push(`  Zona/Localização: ${p.zona}`);
       if (p.ss?.length) linhas.push(`  Sistema Superior: ${p.ss.join(", ")}`);
       if (p.sc?.length) linhas.push(`  Sistema Central: ${p.sc.join(", ")}`);
       if (p.si?.length) linhas.push(`  Sistema Inferior: ${p.si.join(", ")}`);
@@ -3762,11 +3762,11 @@ function gerarRelatorioFiel(tipo, dados, pacienteNome) {
       "PERDA": "algo ou alguém se foi e uma parte ficou presa nesse momento",
     };
     const lado = escudoLado || (passagens?.[passagens.length-1]?.lado || "");
-    const direcao = lado.includes("Esq") ? "trauma racionalizado (lógica, contenção — ansiedade, stress, burnout)" : lado.includes("Drt") ? "trauma emocionalizado (sensibilidade, profundidade — depressão, luto, desamparo)" : "";
+    const direcao = lado.includes("Esq") ? "padrão contentor (lógica, bloqueio)" : lado.includes("Drt") ? "padrão emocional (sensibilidade, profundidade)" : "";
     if (escudo || direcao) {
-      linhas.push(`\nLEITURA DA CORRELAÇÃO (Ponto + Escudo + Lateralidade + Tempo)`);
-      if (escudo && ESC_SENTIDO[escudo]) linhas.push(`  Escudo ${escudo}: ${ESC_SENTIDO[escudo]}.`);
-      if (direcao) linhas.push(`  Lateralidade (${lado}): ${direcao}.`);
+      linhas.push(`\nCORRELAÇÃO (Critério + Contexto + Zona + Tempo)`);
+      if (escudo && ESC_SENTIDO[escudo]) linhas.push(`  Contexto ${escudo}: ${ESC_SENTIDO[escudo]}.`);
+      if (direcao) linhas.push(`  Padrão (${lado}): ${direcao}.`);
       if (quando?.texto) linhas.push(`  Tempo do conflito: ${quando.texto}.`);
     }
 
@@ -4208,11 +4208,11 @@ function FormMapeamentoGrelha({ paciente, user, onGuardar, onVoltar }) {
         </div>
       </div>
 
-      <ChipGroup titulo={`1. PONTOS VITAIS — ${atual.lado}`} hint="Pesquisa os centros de energia vital. Marca onde travou." lista={PONTOS_VITAIS} campo="pv" />
+      <ChipGroup titulo={`1. CRITÉRIOS — ${atual.lado}`} hint="Selecciona os critérios observados. Marca os que se aplicam." lista={PONTOS_VITAIS} campo="pv" />
       <ChipGroup titulo={`2. PONTOS DE ENTRADA — ${atual.lado}`} hint="Zona onde o corpo conteve a reação." lista={PONTOS_ENTRADA} campo="pe" />
 
       <div className="card" style={{marginBottom:10}}>
-        <div className="card-t">3. LATERALIDADE (zona detetada)</div>
+        <div className="card-t">3. ZONA/LOCALIZAÇÃO (onde foi detetado)</div>
         <input className="inp" value={atual.zona} onChange={e=>setAtual(a=>({...a,zona:e.target.value}))} placeholder="Zona onde travou ao deslizar..." />
       </div>
 
@@ -4453,12 +4453,28 @@ function FormAtendimentoEstruturado({ paciente, user, caminhoInit, tituloConsult
 // ══════════════════════════════════════════════════════════════════
 function NovaConsulta({ user, onIniciar }) {
   const [modulos, setModulos] = useState([]);
+  const [nomes, setNomes] = useState(user?.config?.sessoes_nomes || {
+    consulta_unica: "Consulta Única",
+    pack_s1: "Pack 3 Sessões — Sessão 1",
+    pack_s2: "Pack 3 Sessões — Sessão 2",
+    pack_s3: "Pack 3 Sessões — Sessão 3",
+    seguimento: "Seguimento / Manutenção",
+    mapeamento_avulso: "Mapeamento Avulso"
+  });
   
   useEffect(() => {
-    // Carregar módulos customizados publicados do subscritor
+    // Carregar módulos customizados publicados do subscritor (EXCLUIR módulos com bloqueio)
     sb.from("custom_modules").select("*").eq("terapeuta_id", user.id).eq("publicado", true).order("criado_em", { ascending: false })
-      .then(({data}) => setModulos(data || []));
-  }, [user?.id]);
+      .then(({data}) => {
+        // Filtrar módulos: só mostrar se:
+        // 1. Não tem bloqueio (bloqueado_com = null)
+        // 2. Ou user tem permissão (has_exclusive_therapy_access = true)
+        const filtrados = (data || []).filter(m => 
+          !m.bloqueado_com || user.has_exclusive_therapy_access === true
+        );
+        setModulos(filtrados);
+      });
+  }, [user?.id, user?.has_exclusive_therapy_access]);
 
   return (
     <div className="fade">
@@ -4467,14 +4483,14 @@ function NovaConsulta({ user, onIniciar }) {
         <div style={{fontSize:10,color:"#3d5a7a"}}>Toca num cartão para iniciar a consulta guiada passo a passo</div>
       </div>
 
-      {/* TIPOS PADRÃO */}
+      {/* TIPOS PADRÃO (UNIVERSAL - SEMPRE VISÍVEL) */}
       {[
-        { id:"consulta_unica", form:"form_a", icon:"🩺", titulo:"Consulta Única", sub:"Atendimento único", desc:"Acolhimento → Dados Pessoais → 6 Perguntas do Poder → Indicação Terapêutica → Protocolo de Cura", tags:["1ª consulta","Paciente novo","Clareza e direcionamento"] },
-        { id:"pack_s1", form:"form_c", caminho:1, icon:"1️⃣", titulo:"Pack 3 Sessões — Sessão 1", sub:"Mente Consciente", desc:"Monitorização → 6 Perguntas → Pontuação dos Escudos (Caminho 1) → Protocolo 7 dias", tags:["Pack","Escudos","Base emocional"] },
-        { id:"pack_s2", form:"form_b", icon:"2️⃣", titulo:"Pack 3 Sessões — Sessão 2", sub:"Mapeamento Energético", desc:"Grelha completa: Energia Vital → Zona de Impacto → Lateralidade → 3 Sistemas → Escudo → Tempo → Protocolo de Cura", tags:["Pack","Mapeamento","Raiz do sintoma"] },
-        { id:"pack_s3", form:"form_c", caminho:1, icon:"3️⃣", titulo:"Pack 3 Sessões — Sessão 3", sub:"Consolidação", desc:"Revisão → Ferramentas práticas → Checklists e autocuidado → Protocolo de encerramento", tags:["Pack","Consolidação","Autocuidado"] },
-        { id:"seguimento", form:"form_c", caminho:3, icon:"🔄", titulo:"Seguimento / Manutenção", sub:"Estressores Ativos", desc:"Monitorização → 6 Perguntas → Estressores e Gatilhos (Caminho 3) → Protocolo de manutenção", tags:["Seguimento","Estressores","Sintomas recorrentes"] },
-        { id:"mapeamento_avulso", form:"form_b", icon:"🗺️", titulo:"Mapeamento Avulso", sub:"Mapeamento independente", desc:"Mapeamento Energético completo fora do pack — para aceder à raiz profunda do sintoma a qualquer momento", tags:["Avulso","Mapeamento"] },
+        { id:"consulta_unica", form:"form_a", icon:"🩺", titulo:nomes.consulta_unica, sub:"Atendimento único", desc:"Acolhimento → Avaliação inicial → Questionário → Análise → Protocolo personalizado", tags:["1ª consulta","Paciente novo","Diagnóstico claro"] },
+        { id:"pack_s1", form:"form_c", caminho:1, icon:"1️⃣", titulo:nomes.pack_s1, sub:"Avaliação Inicial", desc:"Acolhimento → Questionário completo → Avaliação dos bloqueios → Protocolo 7 dias", tags:["Pack","Avaliação","Base emocional"] },
+        { id:"pack_s2", form:"form_b", icon:"2️⃣", titulo:nomes.pack_s2, sub:"Análise Profunda", desc:"Avaliação detalhada → Mapeamento → Identificação de padrões → Protocolo de tratamento", tags:["Pack","Mapeamento","Raiz do sintoma"] },
+        { id:"pack_s3", form:"form_c", caminho:1, icon:"3️⃣", titulo:nomes.pack_s3, sub:"Consolidação", desc:"Revisão de progresso → Ferramentas práticas → Estratégias de autocuidado → Protocolo de manutenção", tags:["Pack","Consolidação","Autocuidado"] },
+        { id:"seguimento", form:"form_c", caminho:3, icon:"🔄", titulo:nomes.seguimento, sub:"Acompanhamento", desc:"Monitorização → Avaliação do progresso → Identificação de padrões recorrentes → Protocolo de reforço", tags:["Seguimento","Acompanhamento","Manutenção"] },
+        { id:"mapeamento_avulso", form:"form_b", icon:"🗺️", titulo:nomes.mapeamento_avulso, sub:"Análise independente", desc:"Avaliação completa fora de pack — para análise profunda e identificação de causas raiz", tags:["Avulso","Análise profunda"] },
       ].map(t=>(
         <div key={t.id} onClick={()=>onIniciar&&onIniciar(t.form, t.caminho, t.titulo)}
           style={{cursor:"pointer",padding:"16px 18px",marginBottom:10,borderRadius:12,border:"1px solid #0d1828",background:"#050810",transition:"all .2s"}}
@@ -5764,6 +5780,77 @@ Tutorial completo: https://github.com/WhiskeySockets/Baileys
   );
 }
 
+// CONFIGURAÇÕES DE NOMES EDITÁVEIS (guardadas no profiles.config)
+function SessõesConfig({ user, onAtualizar }) {
+  const [cfg, setCfg] = useState(user?.config?.sessoes_nomes || {
+    consulta_unica: "Consulta Única",
+    pack_s1: "Pack 3 Sessões — Sessão 1",
+    pack_s2: "Pack 3 Sessões — Sessão 2",
+    pack_s3: "Pack 3 Sessões — Sessão 3",
+    seguimento: "Seguimento / Manutenção",
+    mapeamento_avulso: "Mapeamento Avulso"
+  });
+  const [editando, setEditando] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const guardar = async () => {
+    const newConfig = { ...user.config, sessoes_nomes: cfg };
+    const { error } = await sb.from("profiles").update({ config: newConfig }).eq("id", user.id);
+    if (error) { setMsg("❌ Erro: " + error.message); return; }
+    setMsg("✅ Nomes guardados!");
+    onAtualizar && onAtualizar();
+    setTimeout(() => { setMsg(""); setEditando(false); }, 1500);
+  };
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#5ae0d8", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        ✏️ Nomes das Sessões (Customizáveis)
+        <button className="btn btn-s btn-sm" onClick={() => setEditando(!editando)} style={{ width: "auto" }}>
+          {editando ? "Cancelar" : "Editar"}
+        </button>
+      </div>
+
+      {editando ? (
+        <div style={{ background: "#050810", border: "1px solid #1a4a7c", borderRadius: 8, padding: 12 }}>
+          {[
+            { id: "consulta_unica", label: "Consulta Única" },
+            { id: "pack_s1", label: "Sessão 1 do Pack" },
+            { id: "pack_s2", label: "Sessão 2 do Pack" },
+            { id: "pack_s3", label: "Sessão 3 do Pack" },
+            { id: "seguimento", label: "Seguimento/Manutenção" },
+            { id: "mapeamento_avulso", label: "Mapeamento Avulso" }
+          ].map(s => (
+            <div key={s.id} style={{ marginBottom: 10 }}>
+              <label className="lbl" style={{ fontSize: ".65rem" }}>{s.label}</label>
+              <input
+                className="inp"
+                value={cfg[s.id]}
+                onChange={e => setCfg({ ...cfg, [s.id]: e.target.value })}
+                placeholder="Nome customizado..."
+                style={{ fontSize: ".7rem" }}
+              />
+            </div>
+          ))}
+          
+          <button className="btn btn-p" style={{ width: "100%", marginTop: 10 }} onClick={guardar}>
+            💾 Guardar Nomes
+          </button>
+          {msg && <div style={{ marginTop: 8, fontSize: ".7rem", color: msg.includes("✅") ? "#00c6b8" : "#d9534f" }}>{msg}</div>}
+        </div>
+      ) : (
+        <div style={{ background: "#050810", border: "1px solid #1a4a7c", borderRadius: 8, padding: 12 }}>
+          {Object.entries(cfg).map(([id, nome]) => (
+            <div key={id} style={{ fontSize: ".7rem", color: "#b0c4d8", padding: "6px 0", borderBottom: "1px solid #0d1828" }}>
+              <strong>{nome}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Clinica({ user, onUpdate }) {
   const [org, setOrg] = useState(null);
   const [equipa, setEquipa] = useState([]);
@@ -5895,6 +5982,9 @@ function Clinica({ user, onUpdate }) {
         
         {/* SISTEMA WHATSAPP */}
         <SistemaWhatsApp user={user} />
+        
+        {/* CONFIGURAÇÃO DE NOMES DAS SESSÕES */}
+        <SessõesConfig user={user} onAtualizar={() => setPerfil({...user})} />
         
         {msg && <div className="al al-s">{msg}</div>}
         <div className="card">
