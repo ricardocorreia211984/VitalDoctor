@@ -6067,9 +6067,20 @@ function PainelPrincipal({ user, org }) {
 // DASHBOARD COM TEMPLATES PRONTOS
 // ═══════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD COM LÓGICA DE REDIRECIONAMENTO INTELIGENTE
+// ═══════════════════════════════════════════════════════════════════
+
 function DashboardComTemplates({ user, modoEdicao }) {
-  const [abaDashboard, setAbaDashboard] = useState('templates');
+  const [abaDashboard, setAbaDashboard] = useState('intro');
   const [templateSelecionado, setTemplateSelecionado] = useState(null);
+  const [temAcessoBioMicroHertz, setTemAcessoBioMicroHertz] = useState(false);
+
+  useEffect(() => {
+    // Verificar se tem acesso ao módulo BioMicroHertz
+    setTemAcessoBioMicroHertz(user?.has_exclusive_therapy_access === true);
+  }, [user?.has_exclusive_therapy_access]);
+
   const [templates] = useState([
     {
       id: 'consulta_unica',
@@ -6117,22 +6128,276 @@ function DashboardComTemplates({ user, modoEdicao }) {
     },
   ]);
 
+  // ═══════════════════════════════════════════════════════════════════
+  // PÁGINA INTRO: ESCOLHER MÓDULO (se tem acesso) ou ir direto universal
+  // ═══════════════════════════════════════════════════════════════════
+
+  if (abaDashboard === 'intro') {
+    return (
+      <div className="fade" style={{ minHeight: '100vh', maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #061428, #0a1e2e)',
+          border: '2px solid #00c6b8',
+          borderRadius: 12,
+          padding: '40px 32px',
+          textAlign: 'center',
+          marginBottom: 24
+        }}>
+          <div style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 28,
+            color: '#dde4f0',
+            marginBottom: 12,
+            fontWeight: 700
+          }}>
+            Bem-vindo ao VitalDoctor
+          </div>
+          <div style={{ fontSize: '0.9rem', color: '#8ba3c0' }}>
+            Escolha por onde quer começar o atendimento
+          </div>
+        </div>
+
+        {/* SE TEM ACESSO AO MÓDULO BIOMICROHERTZ - MOSTRA ESCOLHA */}
+        {temAcessoBioMicroHertz ? (
+          <>
+            {/* OPÇÃO 1: MÓDULO ANSIEDADE & DEPRESSÃO */}
+            <button
+              onClick={() => setAbaDashboard('biomicrohertz')}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #d4a574, #c0935c)',
+                border: '2px solid #d4a574',
+                borderRadius: 12,
+                padding: '32px 28px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                marginBottom: 16,
+                transition: 'all 0.3s',
+                color: '#050810'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(212, 165, 116, 0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔐</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8 }}>
+                Módulo Ansiedade & Depressão
+              </div>
+              <div style={{ fontSize: '0.85rem', opacity: 0.9, lineHeight: 1.6 }}>
+                Método especializado e certificado. Acesso exclusivo para profissionais autorizados.
+              </div>
+            </button>
+
+            {/* DIVISOR */}
+            <div style={{
+              textAlign: 'center',
+              margin: '24px 0',
+              fontSize: '0.8rem',
+              color: '#3d5a7a',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: 1
+            }}>
+              OU
+            </div>
+
+            {/* OPÇÃO 2: ATENDIMENTO UNIVERSAL */}
+            <button
+              onClick={() => setAbaDashboard('templates')}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+                border: '2px solid #00c6b8',
+                borderRadius: 12,
+                padding: '32px 28px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                marginBottom: 24,
+                transition: 'all 0.3s',
+                color: '#dde4f0'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 198, 184, 0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🌍</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8 }}>
+                Atendimento Universal
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#8ba3c0', lineHeight: 1.6 }}>
+                Templates agnósticos para qualquer terapia. Customize conforme suas necessidades.
+              </div>
+            </button>
+
+            <div style={{
+              background: 'rgba(0, 198, 184, 0.1)',
+              border: '1px solid #00c6b8',
+              borderRadius: 8,
+              padding: 16,
+              fontSize: '0.75rem',
+              color: '#8ba3c0',
+              textAlign: 'center'
+            }}>
+              ✅ Tem acesso aos dois módulos. Escolha qual quer usar para este atendimento.
+            </div>
+          </>
+        ) : (
+          // SE NÃO TEM ACESSO - VAI DIRETO PARA UNIVERSAL
+          <>
+            <button
+              onClick={() => setAbaDashboard('templates')}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+                border: '2px solid #00c6b8',
+                borderRadius: 12,
+                padding: '32px 28px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                marginBottom: 24,
+                transition: 'all 0.3s',
+                color: '#dde4f0'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 198, 184, 0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🌍</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8 }}>
+                Atendimento Universal
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#8ba3c0', lineHeight: 1.6 }}>
+                Templates agnósticos para qualquer terapia. Customize conforme suas necessidades.
+              </div>
+            </button>
+
+            <div style={{
+              background: 'rgba(0, 198, 184, 0.1)',
+              border: '1px solid #00c6b8',
+              borderRadius: 8,
+              padding: 16,
+              fontSize: '0.75rem',
+              color: '#8ba3c0',
+              textAlign: 'center'
+            }}>
+              📚 Sistema universal disponível para todos os terapeutas.
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PÁGINA BIOMICROHERTZ (Módulo especializado)
+  // ═══════════════════════════════════════════════════════════════════
+
+  if (abaDashboard === 'biomicrohertz') {
+    return (
+      <div className="fade" style={{ minHeight: '100vh' }}>
+        <button
+          onClick={() => setAbaDashboard('intro')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#d4a574',
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+            marginBottom: 20,
+            fontWeight: 700
+          }}
+        >
+          ← Voltar à Escolha
+        </button>
+
+        <div style={{
+          background: 'linear-gradient(135deg, #d4a574, #c0935c)',
+          border: '2px solid #d4a574',
+          borderRadius: 12,
+          padding: '28px',
+          color: '#050810',
+          marginBottom: 24
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔐</div>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0, marginBottom: 8 }}>
+            Módulo Ansiedade & Depressão
+          </h2>
+          <p style={{ fontSize: '0.85rem', margin: 0, opacity: 0.95 }}>
+            Método especializado e certificado. Você tem acesso exclusivo a este módulo.
+          </p>
+        </div>
+
+        {/* AQUI VIRÁ O CONTEÚDO ESPECÍFICO DO MÓDULO */}
+        <div style={{
+          background: 'linear-gradient(135deg, #0a1e2e, #061428)',
+          border: '1px solid #d4a574',
+          borderRadius: 8,
+          padding: 20,
+          textAlign: 'center',
+          color: '#8ba3c0'
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>🎯</div>
+          <div style={{ fontSize: '0.85rem' }}>
+            Módulo especializado em desenvolvimento...
+          </div>
+          <div style={{ fontSize: '0.7rem', marginTop: 8, color: '#3d5a7a' }}>
+            Este é o seu módulo privado e exclusivo.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PÁGINA TEMPLATES (Universal)
+  // ═══════════════════════════════════════════════════════════════════
+
   return (
     <div className="fade" style={{ minHeight: '100vh' }}>
+      <button
+        onClick={() => setAbaDashboard('intro')}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#00c6b8',
+          cursor: 'pointer',
+          fontSize: '0.75rem',
+          marginBottom: 20,
+          fontWeight: 700
+        }}
+      >
+        ← Voltar à Escolha
+      </button>
+
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, borderBottom: '1px solid #1a3a5c', paddingBottom: 12 }}>
         {['templates', 'criar'].map(aba => (
           <button
             key={aba}
-            onClick={() => setAbaDashboard(aba)}
+            onClick={() => setAbaDashboard(aba === 'templates' ? 'templates' : 'criar')}
             style={{
               padding: '8px 16px',
-              background: abaDashboard === aba ? 'rgba(0, 198, 184, 0.15)' : 'transparent',
-              border: abaDashboard === aba ? '1px solid #00c6b8' : 'none',
-              color: abaDashboard === aba ? '#00c6b8' : '#8ba3c0',
+              background: (abaDashboard === 'templates' && aba === 'templates') || (abaDashboard === 'criar' && aba === 'criar') ? 'rgba(0, 198, 184, 0.15)' : 'transparent',
+              border: (abaDashboard === 'templates' && aba === 'templates') || (abaDashboard === 'criar' && aba === 'criar') ? '1px solid #00c6b8' : 'none',
+              color: (abaDashboard === 'templates' && aba === 'templates') || (abaDashboard === 'criar' && aba === 'criar') ? '#00c6b8' : '#8ba3c0',
               cursor: 'pointer',
               borderRadius: 6,
               fontSize: '0.8rem',
-              fontWeight: abaDashboard === aba ? 700 : 500
+              fontWeight: ((abaDashboard === 'templates' && aba === 'templates') || (abaDashboard === 'criar' && aba === 'criar')) ? 700 : 500
             }}
           >
             {aba === 'templates' && '📚 Templates Prontos'}
@@ -6141,7 +6406,7 @@ function DashboardComTemplates({ user, modoEdicao }) {
         ))}
       </div>
 
-      {abaDashboard === 'templates' && !templateSelecionado && (
+      {(abaDashboard === 'templates' || abaDashboard === 'templates_detail') && !templateSelecionado && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
           {templates.map(t => (
             <button
