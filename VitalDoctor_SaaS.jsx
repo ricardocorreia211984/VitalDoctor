@@ -422,7 +422,7 @@ function Auth({ onLogin }) {
 // ══════════════════════════════════════════════════════
 function Dashboard({ user, pacs, agenda, go }) {
   const dias = user?.trial_fim ? Math.max(0, Math.ceil((new Date(user.trial_fim) - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
-  const trial = user?.plano === "trial";
+  const trial = user?.plano === "trial" && user?.role !== "superadmin";
   const hojeMs = agenda.filter(m => m.data === hoje());
   const totalPago = pacs.reduce((s, p) => s + (p._pagoPago || 0), 0);
   const totalPend = pacs.reduce((s, p) => s + (p._pagoPend || 0), 0);
@@ -431,8 +431,14 @@ function Dashboard({ user, pacs, agenda, go }) {
     <div className="fade">
       {trial && dias > 0 && (
         <div className="trial-bar">
-          <div style={{fontSize:11,color:"#fde68a"}}>Trial: <strong style={{color:"#f59e0b"}}>{dias} dias restantes</strong></div>
-          <button className="btn btn-g btn-sm" style={{width:"auto"}}>Fazer upgrade</button>
+          <div style={{fontSize:11,color:"#fde68a"}}>Teste grátis: <strong style={{color:"#f59e0b"}}>{dias} {dias === 1 ? "dia restante" : "dias restantes"}</strong></div>
+          <button className="btn btn-g btn-sm" style={{width:"auto"}}>Subscrever</button>
+        </div>
+      )}
+      {trial && dias === 0 && (
+        <div className="trial-bar">
+          <div style={{fontSize:11,color:"#fde68a"}}>O teu <strong style={{color:"#f59e0b"}}>teste grátis terminou</strong> — subscreve para continuares.</div>
+          <button className="btn btn-g btn-sm" style={{width:"auto"}}>Subscrever</button>
         </div>
       )}
       <div className="stats">
@@ -2050,7 +2056,361 @@ function pontosComOverride() {
   return PONTOS.map(p => ov[p.id] ? { ...p, ...ov[p.id] } : p);
 }
 
-// Painel de edição de conteúdo do método (só super admin)
+// ════════ Construtor de Módulos Terapêuticos (agnóstico) ════════
+function ConstrutorModulos({ user }) {
+  const ehAdmin = user?.role === "superadmin";
+  const [modulos, setModulos] = useState([]);
+  const [load, setLoad] = useState(true);
+  const [editando, setEditando] = useState(null); // id do módulo a editar
+  const [novo, setNovo] = useState(null); // nome do novo módulo
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    carregar();
+  }, [user?.id]);
+
+  const carregar = async () => {
+    const { data } = await sb.from("custom_modules").select("*").eq("terapeuta_id", user.id).order("criado_em", { ascending: false });
+    setModulos(data || []);
+    setLoad(false);
+  };
+
+  const criarModulo = async () => {
+    if (!novo?.trim()) { setMsg("Dá um nome ao módulo."); return; }
+    setLoad(true);
+    const { data, error } = await sb.from("custom_modules").insert({
+      terapeuta_id: user.id,
+      nome: novo,
+      descricao: "",
+      biblioteca: { criterios: [], protocolos: [] },
+      fluxo: { passos: [] },
+      logica: {},
+      template_relatorio: ""
+    }).select().single();
+    if (error) { setMsg("Erro: " + error.message); setLoad(false); return; }
+    setModulos([data, ...modulos]);
+    setNovo(null);
+    setEditando(data.id);
+    setLoad(false);
+  };
+
+  const deletarModulo = async (id) => {
+    if (!confirm("Apagar este módulo? (dados dos pacientes não são afetados)")) return;
+    await sb.from("custom_modules").delete().eq("id", id);
+    setModulos(modulos.filter(m => m.id !== id));
+  };
+
+  const publicarModulo = async (id) => {
+    await sb.from("custom_modules").update({ publicado: true }).eq("id", id);
+    setModulos(modulos.map(m => m.id === id ? { ...m, publicado: true } : m));
+    setMsg("✅ Módulo publicado!");
+    setTimeout(() => setMsg(""), 2000);
+  };
+
+  if (load) return <div className="fade"><div className="al al-i">A carregar...</div></div>;
+
+  // MODO EDIÇÃO
+  if (editando) {
+    const mod = modulos.find(m => m.id === editando);
+    return <EditorModulo modulo={mod} user={user} onSalvar={() => { carregar(); setEditando(null); }} onVoltar={() => setEditando(null)} />;
+  }
+
+  // LISTA DE MÓDULOS
+  return (
+    <div className="fade">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:"1.05rem",fontWeight:700,color:"#dde4f0"}}>⚙️ Meus Módulos Terapêuticos</div>
+      </div>
+
+      <div style={{fontSize:".72rem",background:"#0d1422",border:"1px solid #14233a",borderRadius:10,padding:12,marginBottom:14,color:"#5a7a9a",lineHeight:1.5}}>
+        Cria módulos customizados para a tua terapia. Cada módulo tem: critérios de avaliação, fluxo de consulta, lógica de cálculo e relatório automático. Totalmente no-code e editável.
+      </div>
+
+      {msg && <div className="al al-ok">{msg}</div>}
+
+      {/* CRIAR NOVO */}
+      <div className="card">
+        <label className="lbl">Criar novo módulo</label>
+        <div style={{display:"flex",gap:8}}>
+          <input className="inp" value={novo || ""} onChange={e => setNovo(e.target.value)} placeholder="Ex: Meu Protocolo Nutricional" />
+          <button className="btn btn-p btn-sm" style={{width:"auto"}} disabled={load} onClick={criarModulo}>+ Criar</button>
+        </div>
+      </div>
+
+      {/* LISTA */}
+      {modulos.length === 0 ? (
+        <div className="al al-i">Nenhum módulo criado. Começa agora!</div>
+      ) : (
+        modulos.map(m => (
+          <div key={m.id} className="card" style={{borderColor: m.publicado ? "#1a5a4c" : "#3a3a3a"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:".9rem",fontWeight:700,color:"#dde4f0"}}>{m.nome}</div>
+                <div style={{fontSize:".7rem",color:"#5a7a9a",marginTop:3}}>{m.descricao || "(sem descrição)"}</div>
+                <div style={{fontSize:".65rem",color:"#3d5a7a",marginTop:5}}>
+                  Passos: {(m.fluxo?.passos || []).length} · 
+                  Critérios: {(m.biblioteca?.criterios || []).length} · 
+                  Protocolos: {(m.biblioteca?.protocolos || []).length}
+                </div>
+                {m.publicado && <span style={{display:"inline-block",fontSize:".65rem",background:"#1a5a4c",color:"#5ae0d8",padding:"2px 8px",borderRadius:4,marginTop:8}}>✅ Publicado</span>}
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={() => setEditando(m.id)}>✏️ Editar</button>
+                {!m.publicado && <button className="btn btn-g btn-sm" style={{width:"auto"}} onClick={() => publicarModulo(m.id)}>📤 Publicar</button>}
+                <button className="btn btn-s btn-sm" style={{width:"auto",color:"#d9534f"}} onClick={() => deletarModulo(m.id)}>🗑️</button>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// Editor de módulo (construtor visual)
+function EditorModulo({ modulo, user, onSalvar, onVoltar }) {
+  const [cfg, setCfg] = useState(modulo);
+  const [aGuardar, setAGuardar] = useState(false);
+  const [secaoAberta, setSecaoAberta] = useState(null);
+
+  const guardar = async () => {
+    setAGuardar(true);
+    await sb.from("custom_modules").update(cfg).eq("id", modulo.id);
+    setAGuardar(false);
+    onSalvar && onSalvar();
+  };
+
+  const Secao = ({ titulo, conteudo }) => {
+    const open = secaoAberta === titulo;
+    return (
+      <div style={{marginBottom:10,border:"1px solid #14233a",borderRadius:10,overflow:"hidden"}}>
+        <button 
+          onClick={() => setSecaoAberta(s => s === titulo ? null : titulo)}
+          style={{width:"100%",background:"#0d1422",border:"none",color:"#b0c4d8",fontSize:".75rem",fontWeight:700,cursor:"pointer",padding:"11px 14px",textAlign:"left",display:"flex",justifyContent:"space-between"}}
+        >
+          <span>{titulo}</span><span>{open ? "▲" : "▼"}</span>
+        </button>
+        {open && <div style={{padding:"11px 14px",background:"#050810"}}>{conteudo}</div>}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fade">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:"1.05rem",fontWeight:700,color:"#dde4f0"}}>📝 {cfg.nome}</div>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>← Voltar</button>
+      </div>
+
+      {/* DADOS BÁSICOS */}
+      <Secao titulo="📋 Dados Básicos" conteudo={
+        <>
+          <label className="lbl">Nome do módulo</label>
+          <input className="inp mb8" value={cfg.nome} onChange={e => setCfg({...cfg, nome: e.target.value})} />
+          <label className="lbl">Descrição</label>
+          <textarea className="inp mb8" rows={2} value={cfg.descricao || ""} onChange={e => setCfg({...cfg, descricao: e.target.value})} placeholder="Ex: Protocolo personalizado baseado em energia, nutrição, etc." />
+        </>
+      } />
+
+      {/* BIBLIOTECA DE DADOS */}
+      <Secao titulo="📚 Biblioteca de Dados" conteudo={
+        <>
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Define os critérios, pontos ou categorias de avaliação que usas.</div>
+          <label className="lbl">Critérios de avaliação (um por linha)</label>
+          <textarea className="inp mb8" rows={4} value={(cfg.biblioteca?.criterios || []).join("\n")} 
+            onChange={e => setCfg({...cfg, biblioteca: {...cfg.biblioteca, criterios: e.target.value.split("\n").filter(x => x.trim())}}) } 
+            placeholder="Ex:&#10;Epífise&#10;Hipotálamo&#10;Energia vital&#10;..." />
+          
+          <label className="lbl">Protocolos (um por linha, com ação)</label>
+          <textarea className="inp mb8" rows={4} value={(cfg.biblioteca?.protocolos || []).join("\n")} 
+            onChange={e => setCfg({...cfg, biblioteca: {...cfg.biblioteca, protocolos: e.target.value.split("\n").filter(x => x.trim())}}) } 
+            placeholder="Ex:&#10;Se {{criterio}} acionado → usar {{acao}}&#10;Se energia baixa → suplementação B12&#10;..." />
+        </>
+      } />
+
+      {/* FLUXO DE CONSULTA */}
+      <Secao titulo="🎯 Fluxo da Consulta" conteudo={
+        <>
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Define os passos que a consulta segue (acolhimento, avaliação, resultado, etc.)</div>
+          <label className="lbl">Passos (um por linha)</label>
+          <textarea className="inp mb8" rows={4} value={(cfg.fluxo?.passos || []).map(p => typeof p === "string" ? p : p.nome).join("\n")} 
+            onChange={e => setCfg({...cfg, fluxo: {...cfg.fluxo, passos: e.target.value.split("\n").filter(x => x.trim()).map(p => ({nome: p}))}}) } 
+            placeholder="Ex:&#10;1. Acolhimento&#10;2. Avaliação&#10;3. Interpretação&#10;4. Protocolo&#10;5. Relatório&#10;..." />
+        </>
+      } />
+
+      {/* LÓGICA DE CÁLCULO */}
+      <Secao titulo="⚙️ Lógica de Cálculo" conteudo={
+        <>
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Define como os dados são processados (ex: se paciente responde X, calcula Y). Por agora, documentação manual.</div>
+          <label className="lbl">Notas sobre cálculo</label>
+          <textarea className="inp mb8" rows={3} value={cfg.logica?.notas || ""} 
+            onChange={e => setCfg({...cfg, logica: {...cfg.logica, notas: e.target.value}})} 
+            placeholder="Ex: Somar respostas A+B, multiplicar por peso C. Se resultado > 70 → protocolo intenso." />
+        </>
+      } />
+
+      {/* TEMPLATE DO RELATÓRIO */}
+      <Secao titulo="📄 Template do Relatório" conteudo={
+        <>
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Template com variáveis {{nome_paciente}}, {{data}}, {{criterios_acionados}}, etc.</div>
+          <textarea className="inp mb8" rows={6} value={cfg.template_relatorio || ""} 
+            onChange={e => setCfg({...cfg, template_relatorio: e.target.value})} 
+            placeholder={`RELATÓRIO — {{data}}
+Paciente: {{nome_paciente}}
+
+ACHADOS:
+{{criterios_acionados}}
+
+PROTOCOLO RECOMENDADO:
+{{protocolos_indicados}}
+
+PRÓXIMOS PASSOS:
+- Seguimento em 7 dias
+- Monitorizar {{pontos_chave}}`} />
+        </>
+      } />
+
+      {/* BOTÕES */}
+      <div style={{display:"flex",gap:10}}>
+        <button className="btn btn-p" style={{flex:1}} onClick={guardar} disabled={aGuardar}>💾 {aGuardar ? "A guardar..." : "Guardar módulo"}</button>
+        <button className="btn btn-s" style={{flex:1}} onClick={onVoltar}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════ Executor de Módulo Customizado ════════
+function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar }) {
+  const [passoAtual, setPassoAtual] = useState(0);
+  const [dados, setDados] = useState({}); // dados recolhidos em cada passo
+  const [load, setLoad] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  if (!modulo) return <div className="fade"><div className="al al-e">Módulo não encontrado.</div></div>;
+
+  const passos = modulo.fluxo?.passos || [];
+  const passo = passos[passoAtual];
+  const progresso = ((passoAtual + 1) / passos.length) * 100;
+
+  const handleProx = () => {
+    if (passoAtual < passos.length - 1) {
+      setPassoAtual(p => p + 1);
+    }
+  };
+
+  const handleAnt = () => {
+    if (passoAtual > 0) {
+      setPassoAtual(p => p - 1);
+    }
+  };
+
+  const handleGuardar = async () => {
+    setLoad(true);
+    // Substituir variáveis no template
+    let relatorio = modulo.template_relatorio || "";
+    relatorio = relatorio.replace(/{{nome_paciente}}/g, paciente?.nome || "Paciente");
+    relatorio = relatorio.replace(/{{data}}/g, fmtData(new Date()));
+    relatorio = relatorio.replace(/{{criterios_acionados}}/g, Object.entries(dados).filter(([k,v]) => v).map(([k]) => k).join(", ") || "(nenhum)");
+    relatorio = relatorio.replace(/{{protocolos_indicados}}/g, (modulo.biblioteca?.protocolos || []).slice(0, 3).join(" | ") || "(nenhum)");
+
+    const consulta = {
+      paciente_id: paciente?.id,
+      terapeuta_id: user.id,
+      data: fmtData(new Date()),
+      tipo: "custom_module",
+      modulo_id: modulo.id,
+      modulo_nome: modulo.nome,
+      dados_modulo: dados,
+      relatorio: relatorio,
+      notas: `Módulo: ${modulo.nome} | Passos: ${passos.length}`,
+    };
+
+    const { error } = await sb.from("consultas").insert(consulta);
+    setLoad(false);
+    if (error) { setMsg("Erro: " + error.message); return; }
+    setMsg("✅ Consulta guardada!");
+    setTimeout(() => onGuardar && onGuardar(), 1500);
+  };
+
+  return (
+    <div className="fade">
+      {/* CABEÇALHO */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:"1rem",fontWeight:700,color:"#dde4f0"}}>📋 {modulo.nome}</div>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>← Voltar</button>
+      </div>
+
+      {/* PROGRESSO */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:".65rem",color:"#5a7a9a",marginBottom:4}}>Passo {passoAtual + 1} de {passos.length}</div>
+        <div style={{width:"100%",height:4,background:"#0d1828",borderRadius:2,overflow:"hidden"}}>
+          <div style={{width:progresso+"%",height:"100%",background:"linear-gradient(90deg,#00c6b8,#f59e0b)",transition:"width .3s"}} />
+        </div>
+      </div>
+
+      {/* PASSO ATUAL */}
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{fontSize:".9rem",fontWeight:700,color:"#dde4f0",marginBottom:12}}>
+          {passo?.nome || "Passo"}
+        </div>
+
+        {/* CONTEÚDO DO PASSO (dinâmico) */}
+        {passoAtual === 0 && (
+          <div>
+            <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Informações do paciente</div>
+            <div style={{padding:10,background:"#050810",borderRadius:8,fontSize:".75rem",color:"#b0c4d8"}}>
+              <div>👤 <strong>{paciente?.nome}</strong></div>
+              <div>📧 {paciente?.email}</div>
+              <div>📱 {paciente?.telefone}</div>
+            </div>
+          </div>
+        )}
+
+        {passoAtual === 1 && (
+          <div>
+            <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Selecciona os critérios aplicáveis:</div>
+            {(modulo.biblioteca?.criterios || []).map((crit, i) => (
+              <label key={i} style={{display:"flex",gap:8,padding:"8px 0",alignItems:"center",fontSize:".75rem",cursor:"pointer"}}>
+                <input type="checkbox" checked={dados[crit] || false} onChange={e => setDados({...dados, [crit]: e.target.checked})} />
+                <span style={{color:"#b0c4d8"}}>{crit}</span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {passoAtual > 1 && passoAtual < passos.length - 1 && (
+          <div style={{fontSize:".75rem",color:"#5a7a9a"}}>
+            <textarea className="inp" rows={4} value={dados[`passo_${passoAtual}`] || ""} onChange={e => setDados({...dados, [`passo_${passoAtual}`]: e.target.value})} placeholder="Anotações para este passo..." />
+          </div>
+        )}
+
+        {passoAtual === passos.length - 1 && (
+          <div style={{fontSize:".75rem",color:"#5a7a9a"}}>
+            <div style={{marginBottom:10}}>Pronto para gerar relatório com os dados recolhidos.</div>
+            <div style={{padding:10,background:"#050810",borderRadius:8,fontSize:".7rem",color:"#3d5a7a"}}>
+              Critérios marcados: {Object.entries(dados).filter(([k,v]) => v && k !== "passo_2" && k !== "passo_3").map(([k]) => k).join(", ") || "nenhum"}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* BOTÕES */}
+      <div style={{display:"flex",gap:10}}>
+        {passoAtual > 0 && <button className="btn btn-s" style={{flex:1}} onClick={handleAnt}>← Anterior</button>}
+        {passoAtual < passos.length - 1 ? (
+          <button className="btn btn-p" style={{flex:passoAtual > 0 ? 1 : 2}} onClick={handleProx}>Próximo →</button>
+        ) : (
+          <button className="btn btn-p" style={{flex:1}} onClick={handleGuardar} disabled={load}>{load ? "A guardar..." : "💾 Gerar relatório e guardar"}</button>
+        )}
+      </div>
+
+      {msg && <div className="al al-ok" style={{marginTop:10}}>{msg}</div>}
+    </div>
+  );
+}
+
+// ════════ Painel de edição de conteúdo do método (só super admin)
 function EditorConteudoMetodo({ user }) {
   const ehAdmin = user?.role === "superadmin";
   const [aberto, setAberto] = useState(false);
@@ -2621,12 +2981,79 @@ function AdminPanel({ user }) {
 // ══════════════════════════════════════════════════════
 // APP PRINCIPAL
 // ══════════════════════════════════════════════════════
+// ════════ Política de Privacidade / RGPD ════════
+const POLITICA_PRIVACIDADE = {
+  titulo: "Política de Privacidade e Proteção de Dados",
+  subtitulo: "Tratamento de dados pessoais ao abrigo do RGPD",
+  secoes: [
+    { titulo: "1. Responsável pelo tratamento", texto: "O terapeuta/clínica titular da conta é o responsável pelo tratamento dos dados dos seus pacientes. A VitalDoctor atua como subcontratante (fornecedor da ferramenta), processando os dados apenas para prestar o serviço." },
+    { titulo: "2. Que dados são tratados", texto: "Dados de conta (nome, email), dados de pacientes inseridos pelo terapeuta (identificação, contactos, notas de consulta, respostas a formulários), agendamentos e registos de pagamento. Os dados de saúde são categoria especial e tratados com proteção reforçada." },
+    { titulo: "3. Finalidade e base legal", texto: "Os dados são tratados para a gestão da relação terapêutica (execução do serviço) e com base no consentimento do paciente, recolhido pelo terapeuta. Não são usados para publicidade nem vendidos a terceiros." },
+    { titulo: "4. Onde os dados são guardados", texto: "Os dados são armazenados de forma encriptada em servidores na União Europeia (infraestrutura Supabase). A ligação é protegida por HTTPS e o acesso é isolado por utilizador através de políticas de segurança ao nível da base de dados (RLS)." },
+    { titulo: "5. Conservação", texto: "Os dados são conservados enquanto a conta estiver ativa ou enquanto forem necessários à relação terapêutica e a obrigações legais. O titular pode pedir a eliminação a qualquer momento." },
+    { titulo: "6. Direitos do titular", texto: "Tens direito de acesso, retificação, eliminação, limitação, portabilidade e oposição. Podes exportar os teus dados em formato estruturado através do botão abaixo. Para eliminar dados de um paciente, usa a opção de apagar na ficha do paciente." },
+    { titulo: "7. Segurança", texto: "Encriptação em repouso e em trânsito, isolamento de dados por conta, e controlo de acessos. Nenhum subscritor consegue aceder aos dados de outro." },
+    { titulo: "8. Contacto e reclamações", texto: "Para exercer os teus direitos, contacta o responsável pela conta. Tens também o direito de apresentar reclamação à autoridade de controlo (em Portugal, a CNPD)." },
+  ],
+  nota: "Documento informativo. Recomenda-se revisão por advogado antes da comercialização.",
+};
+
+function PrivacidadeModal({ perfil, onFechar }) {
+  const [aExportar, setAExportar] = useState(false);
+  const exportar = async () => {
+    setAExportar(true);
+    try {
+      const uid = perfil.id;
+      const q = (n) => sb.from(n).select("*").eq("terapeuta_id", uid);
+      const [pac, cons, pag, resp, ag, mat] = await Promise.all([q("pacientes"), q("consultas"), q("pagamentos"), q("respostas"), q("agenda"), q("materiais")]);
+      const dados = {
+        exportado_em: new Date().toISOString(),
+        perfil: { id: perfil.id, nome: perfil.nome, email: perfil.email, role: perfil.role, plano: perfil.plano },
+        pacientes: pac.data || [], consultas: cons.data || [], pagamentos: pag.data || [],
+        respostas: resp.data || [], agenda: ag.data || [], materiais: mat.data || [],
+      };
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `vitaldoctor-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert("Não foi possível exportar agora. Tenta novamente."); }
+    setAExportar(false);
+  };
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(2,6,14,.8)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onFechar}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#0a0e18",border:"1px solid #14233a",borderRadius:14,maxWidth:560,width:"100%",maxHeight:"88vh",overflowY:"auto",padding:"20px 18px"}}>
+        <div style={{fontSize:"1.05rem",fontWeight:700,color:"#cdd9e8"}}>🔒 {POLITICA_PRIVACIDADE.titulo}</div>
+        <div style={{fontSize:".72rem",color:"#5a7a9a",marginTop:3,marginBottom:14}}>{POLITICA_PRIVACIDADE.subtitulo}</div>
+
+        <div style={{background:"#0d1422",border:"1px solid #14233a",borderRadius:10,padding:14,marginBottom:14}}>
+          <div style={{fontSize:".82rem",fontWeight:700,color:"#00c6b8",marginBottom:6}}>📥 Exportar os meus dados (RGPD)</div>
+          <div style={{fontSize:".74rem",color:"#7a98b8",lineHeight:1.5,marginBottom:10}}>Descarrega um ficheiro com todos os teus dados em formato estruturado (portabilidade — Art. 20.º RGPD).</div>
+          <button className="btn btn-p btn-sm" style={{width:"100%"}} disabled={aExportar} onClick={exportar}>{aExportar ? "A preparar..." : "📥 Exportar os meus dados"}</button>
+        </div>
+
+        {POLITICA_PRIVACIDADE.secoes.map((s, i) => (
+          <div key={i} style={{marginBottom:11}}>
+            <div style={{fontSize:".8rem",fontWeight:700,color:"#b0c4d8",marginBottom:3}}>{s.titulo}</div>
+            <div style={{fontSize:".74rem",color:"#7a98b8",lineHeight:1.6}}>{s.texto}</div>
+          </div>
+        ))}
+        <div style={{fontSize:".64rem",color:"#5a7a9a",fontStyle:"italic",marginTop:8,marginBottom:14}}>{POLITICA_PRIVACIDADE.nota}</div>
+
+        <button className="btn btn-s" style={{width:"100%"}} onClick={onFechar}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
 export default function VitalDoctor() {
   const [user, setUser] = useState(null);
   const [perfil, setPerfil] = useState(null);
   const [mod, setMod] = useState("dashboard");
   const [metodoTab, setMetodoTab] = useState(null);
   const [mostrarTermos, setMostrarTermos] = useState(false);
+  const [mostrarPrivacidade, setMostrarPrivacidade] = useState(false);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   useEffect(() => {
     const on = () => setOnline(true), off = () => setOnline(false);
@@ -2681,7 +3108,7 @@ export default function VitalDoctor() {
     setUser(u);
     let { data: prof } = await sb.from("profiles").select("*").eq("id", u.id).single();
     if (!prof) {
-      await sb.from("profiles").insert({ id: u.id, nome: u.user_metadata?.nome || u.email?.split("@")[0], email: u.email, role: "terapeuta", plano: "trial" });
+      await sb.from("profiles").insert({ id: u.id, nome: u.user_metadata?.nome || u.email?.split("@")[0], email: u.email, role: "terapeuta", plano: "trial", trial_fim: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() });
       const { data } = await sb.from("profiles").select("*").eq("id", u.id).single();
       prof = data;
     }
@@ -2731,14 +3158,14 @@ export default function VitalDoctor() {
     ...(temMod("avancado") ? [{ t:"Especializado", items:[{ id:"metodo",icon:"🧠",l:"Atendimento Especializado" }] }] : []),
     ...(temMod("minisite") ? [{ t:"Pratica", items:[{ id:"minisite",icon:"🌐",l:"Mini Site" }] }] : []),
     ...(isSuperAdmin ? [{ t:"Gestão", items:[{ id:"admin",icon:"⚙️",l:"Painel Super Admin" }] }] : []),
-    { t:"Organização", items:[{ id:"clinica",icon:"🏥",l:"A Minha Clínica" }] },
+    { t:"Organização", items:[{ id:"clinica",icon:"🏥",l:"A Minha Clínica" }, { id:"modulos",icon:"⚙️",l:"Meus Módulos Terapêuticos" }] },
     { t:"Apoio", items:[{ id:"suporte",icon:"🆘",l:"Ajuda / Suporte" }] },
   ];
 
   const TITULOS = {
     dashboard:"Dashboard", pacientes:"Pacientes", agenda:"Agenda", mensagens:"Mensagens",
     metodo:"Atendimento Especializado", minisite:"Mini Site",
-    admin:"Painel Super Admin", suporte:"Ajuda / Suporte", clinica:"A Minha Clínica",
+    admin:"Painel Super Admin", suporte:"Ajuda / Suporte", clinica:"A Minha Clínica", modulos:"Meus Módulos Terapêuticos",
   };
 
   if (loading) return (
@@ -2768,6 +3195,7 @@ export default function VitalDoctor() {
         registarAceiteTermos(user.id);
         setMostrarTermos(false);
       }} />}
+      {mostrarPrivacidade && perfil && <PrivacidadeModal perfil={perfil} onFechar={() => setMostrarPrivacidade(false)} />}
       <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
         <div className="app" style={{flex:1,overflow:"hidden"}}>
         <aside className="sb">
@@ -2802,6 +3230,7 @@ export default function VitalDoctor() {
             <div style={{fontSize:8,lineHeight:1.5,color:"#1a2840",marginBottom:6,textAlign:"center"}}>
               Ferramenta de apoio. Não substitui conhecimento, formação nem julgamento clínico.
             </div>
+            <button className="sb-btn" style={{background:"none",border:"1px solid #14233a",color:"#7a98b8",marginBottom:5}} onClick={() => setMostrarPrivacidade(true)}>🔒 Privacidade & RGPD</button>
             <button className="sb-btn" onClick={logout}>Sair</button>
           </div>
         </aside>
@@ -2817,6 +3246,7 @@ export default function VitalDoctor() {
             {mod === "pacientes" && <Pacientes user={perfil} pacs={pacs} setPacs={setPacs} />}
             {mod === "mensagens" && <Mensagens user={perfil} pacs={pacs} />}
             {mod === "clinica"   && <Clinica user={perfil} onUpdate={setPerfil} />}
+            {mod === "modulos"   && <ConstrutorModulos user={perfil} />}
             {mod === "agenda"    && <Agenda user={perfil} pacs={pacs} agenda={agenda} setAgenda={setAgenda} />}
             {mod === "metodo"    && temMod("avancado") && <ModuloMetodo user={perfil} adminMode={isSuperAdmin} initAba={metodoTab} voltar={() => navegar("dashboard")} />}
             {mod === "minisite"  && <MiniSite user={perfil} />}
@@ -2833,6 +3263,9 @@ export default function VitalDoctor() {
                 <span className="mob-icon">{i.icon}</span>{i.l}
               </button>
             ))}
+            <button className="mob-btn" onClick={() => setMostrarPrivacidade(true)}>
+              <span className="mob-icon">🔒</span>Privac.
+            </button>
             <button className="mob-btn" onClick={logout}>
               <span className="mob-icon">🚪</span>Sair
             </button>
@@ -3745,6 +4178,14 @@ function FormAtendimentoEstruturado({ paciente, user, caminhoInit, tituloConsult
 // NOVA CONSULTA — Menu com 3 Tipos de Atendimento
 // ══════════════════════════════════════════════════════════════════
 function NovaConsulta({ user, onIniciar }) {
+  const [modulos, setModulos] = useState([]);
+  
+  useEffect(() => {
+    // Carregar módulos customizados publicados do subscritor
+    sb.from("custom_modules").select("*").eq("terapeuta_id", user.id).eq("publicado", true).order("criado_em", { ascending: false })
+      .then(({data}) => setModulos(data || []));
+  }, [user?.id]);
+
   return (
     <div className="fade">
       <div style={{background:"linear-gradient(135deg,#061428,#0a1e2e)",border:"1px solid #1a3a5c",borderRadius:12,padding:"18px 20px",marginBottom:14,textAlign:"center"}}>
@@ -3752,6 +4193,7 @@ function NovaConsulta({ user, onIniciar }) {
         <div style={{fontSize:10,color:"#3d5a7a"}}>Toca num cartão para iniciar a consulta guiada passo a passo</div>
       </div>
 
+      {/* TIPOS PADRÃO */}
       {[
         { id:"consulta_unica", form:"form_a", icon:"🩺", titulo:"Consulta Única", sub:"Atendimento único", desc:"Acolhimento → Dados Pessoais → 6 Perguntas do Poder → Indicação Terapêutica → Protocolo de Cura", tags:["1ª consulta","Paciente novo","Clareza e direcionamento"] },
         { id:"pack_s1", form:"form_c", caminho:1, icon:"1️⃣", titulo:"Pack 3 Sessões — Sessão 1", sub:"Mente Consciente", desc:"Monitorização → 6 Perguntas → Pontuação dos Escudos (Caminho 1) → Protocolo 7 dias", tags:["Pack","Escudos","Base emocional"] },
@@ -3778,13 +4220,36 @@ function NovaConsulta({ user, onIniciar }) {
           </div>
         </div>
       ))}
+
+      {/* MÓDULOS CUSTOMIZADOS DO SUBSCRITOR */}
+      {modulos.length > 0 && (
+        <>
+          <div style={{fontSize:11,color:"#5a7a9a",fontWeight:700,marginTop:18,marginBottom:10}}>MEUS MÓDULOS PERSONALIZADOS</div>
+          {modulos.map(m=>(
+            <div key={m.id} onClick={()=>onIniciar&&onIniciar("custom_module", null, m.nome, m.id)}
+              style={{cursor:"pointer",padding:"16px 18px",marginBottom:10,borderRadius:12,border:"1px solid #1a5a4c",background:"#051018",transition:"all .2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="#5ae0d8";e.currentTarget.style.background="#0a1c24"}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a5a4c";e.currentTarget.style.background="#051018"}}>
+              <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
+                <div style={{width:44,height:44,borderRadius:10,background:"linear-gradient(135deg,#1a5a5c,#0d3535)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>📋</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#5ae0d8",marginBottom:2}}>{m.nome}</div>
+                  <div style={{fontSize:10,color:"#00c6b8",marginBottom:5,fontWeight:600}}>Módulo personalizado</div>
+                  <div style={{fontSize:10,color:"#5a7a9a",lineHeight:1.6,marginBottom:8}}>{m.descricao || "(sem descrição)"}</div>
+                  <div style={{display:"flex",gap:5}}>
+                    <span style={{fontSize:9,padding:"2px 8px",borderRadius:10,background:"#1a5a4c",color:"#5ae0d8",border:"1px solid #1a7a7c"}}>Passos: {(m.fluxo?.passos || []).length}</span>
+                    <span style={{fontSize:9,padding:"2px 8px",borderRadius:10,background:"#1a5a4c",color:"#5ae0d8",border:"1px solid #1a7a7c"}}>Critérios: {(m.biblioteca?.criterios || []).length}</span>
+                  </div>
+                </div>
+                <div style={{fontSize:20,color:"#1a7a6c",flexShrink:0,alignSelf:"center"}}>▶</div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
-
-// ══════════════════════════════════════════════════════════════════
-// MÓDULO MÉTODO — Orquestra todos os formulários + tabs
-// ══════════════════════════════════════════════════════════════════
 function ModuloMetodo({ user, adminMode, initAba, voltar }) {
   const [aceite, setAceite] = useState(jaAceitou(user?.id, "metodo"));
   const [aba, setAba] = useState(initAba || "consulta");
@@ -3793,9 +4258,11 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
   const [caminhoInit, setCaminhoInit] = useState(null); // caminho pré-seleccionado para form_c
   const [tituloConsulta, setTituloConsulta] = useState(""); // nome do tipo de consulta escolhido
   const [pacSel, setPacSel] = useState(null); // paciente seleccionado para a consulta
-  const [pacs, setPacs] = useState([]);
+  const [modulos, setModulos] = useState([]);
   const [busca, setBusca] = useState("");
   const [ok, setOk] = useState("");
+  const [moduloCustomSel, setModuloCustomSel] = useState(null); // id do módulo customizado
+  const [moduloCustomCarregado, setModuloCustomCarregado] = useState(null); // módulo customizado carregado
 
   useEffect(() => {
     if (user?.id) {
@@ -3807,11 +4274,23 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
     }
   }, [user]);
 
+  // Carregar módulo customizado quando selecionado
+  useEffect(() => {
+    if (moduloCustomSel) {
+      sb.from("custom_modules").select("*").eq("id", moduloCustomSel).single()
+        .then(({ data, error }) => {
+          if (error) { console.error("Erro ao carregar módulo:", error); return; }
+          setModuloCustomCarregado(data);
+        });
+    }
+  }, [moduloCustomSel]);
+
   // Quando o terapeuta escolhe o tipo de consulta, primeiro selecciona o paciente
-  const handleIniciar = (tipoForm, caminho, titulo) => {
+  const handleIniciar = (tipoForm, caminho, titulo, moduloId) => {
     setFormAtivo(tipoForm);
     setCaminhoInit(caminho || null);
     setTituloConsulta(titulo || "");
+    setModuloCustomSel(moduloId || null);
     setAba("consulta_ativa");
   };
 
@@ -3904,7 +4383,7 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
           <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
             <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={voltarMenu}>← Voltar</button>
             <div style={{fontWeight:700,color:"#dde4f0",fontSize:13}}>
-              {tituloConsulta || (formAtivo==="form_a"?"🩺 1º Atendimento":formAtivo==="form_b"?"🗺️ Mapeamento Energético Vital":"🧭 Atendimento Estruturado")}
+              {tituloConsulta || (formAtivo==="form_a"?"🩺 1º Atendimento":formAtivo==="form_b"?"🗺️ Mapeamento Energético Vital":formAtivo==="custom_module"?"📋 Módulo Personalizado":"🧭 Atendimento Estruturado")}
             </div>
           </div>
           <div className="card-t">Selecciona o paciente</div>
@@ -3951,6 +4430,7 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
 
       {aba==="consulta_ativa" && formAtivo && pacSel && (
         <>
+          {formAtivo==="custom_module" && moduloCustomCarregado && <ExecutorModuloCustomizado modulo={moduloCustomCarregado} paciente={pacSel} user={user} onGuardar={voltarMenu} onVoltar={() => { setModuloCustomSel(null); setModuloCustomCarregado(null); voltarMenu(); }} />}
           {formAtivo==="form_a" && <FormPrimeiroAtendimento paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
           {formAtivo==="form_b" && <FormMapeamentoGrelha     paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
           {formAtivo==="form_c" && <FormAtendimentoEstruturado paciente={pacSel} user={user} caminhoInit={caminhoInit} tituloConsulta={tituloConsulta} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
@@ -4514,6 +4994,9 @@ function Clinica({ user, onUpdate }) {
   const [codigoJuntar, setCodigoJuntar] = useState("");
   const [nomeProf, setNomeProf] = useState(user?.nome_profissional || user?.nome || "");
   const [msg, setMsg] = useState("");
+  const [editandoPag, setEditandoPag] = useState(false);
+  const [cfgPag, setCfgPag] = useState(null);
+  const [secaoAbertaPag, setSecaoAbertaPag] = useState(null);
 
   const carregar = async () => {
     if (user.org_id) {
@@ -4561,7 +5044,66 @@ function Clinica({ user, onUpdate }) {
     setOrg(null); setEquipa([]);
   };
 
+  const abrirEditorPagina = async () => {
+    const { data } = await sb.from("profiles").select("config").eq("id", user.id).maybeSingle();
+    setCfgPag(data?.config || {site_slug: "", marca: "", oferta: "", categorias: []});
+    setEditandoPag(true);
+  };
+
+  const guardarPagina = async () => {
+    setLoad(true);
+    await sb.from("profiles").update({config: cfgPag}).eq("id", user.id);
+    setLoad(false);
+    setMsg("✅ Página pública atualizada!");
+    setEditandoPag(false);
+    setTimeout(() => setMsg(""), 3000);
+  };
+
   if (load) return <div className="fade"><div className="al al-i">A carregar...</div></div>;
+
+  // MODO EDIÇÃO DA PÁGINA PÚBLICA
+  if (editandoPag && cfgPag) {
+    return (
+      <div className="fade">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:"1.05rem",fontWeight:700,color:"#dde4f0"}}>✏️ Editar página pública</div>
+          <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={() => setEditandoPag(false)}>✕ Fechar</button>
+        </div>
+
+        {/* Barra informativa */}
+        <div style={{fontSize:".72rem",background:"#0d1422",border:"1px solid #14233a",borderRadius:10,padding:12,marginBottom:14,color:"#5a7a9a"}}>
+          Edita com lápis. A página pública muda automaticamente. Não há lápis visível para os clientes.
+        </div>
+
+        {/* Edição visual com lápis (reutilizando SitePreview) */}
+        <div style={{background:"#050810",border:"1px solid #1a3a5c",borderRadius:12,padding:"16px 18px",marginBottom:14}}>
+          <SitePreview cfg={cfgPag} editavel={true} onEditar={(sec) => { setSecaoAbertaPag(sec); }} />
+        </div>
+
+        {/* Campos editáveis por secção (sanfona simplificada) */}
+        <div className="card">
+          <div style={{fontSize:".82rem",fontWeight:700,color:"#b0c4d8",marginBottom:10}}>Dados principais</div>
+          
+          <label className="lbl">URL da página (slug)</label>
+          <input className="inp mb8" value={cfgPag.site_slug || ""} onChange={e => setCfgPag({...cfgPag, site_slug: e.target.value})} placeholder="ex: minha-clinica" />
+          
+          <label className="lbl">Nome da marca / clínica</label>
+          <input className="inp mb8" value={cfgPag.marca || ""} onChange={e => setCfgPag({...cfgPag, marca: e.target.value})} placeholder="ex: Clínica Iqarifa" />
+          
+          <label className="lbl">Oferta principal</label>
+          <textarea className="inp mb8" rows={2} value={cfgPag.oferta || ""} onChange={e => setCfgPag({...cfgPag, oferta: e.target.value})} placeholder="Descreve o que ofereces" />
+        </div>
+
+        {/* Botões de ação */}
+        <div style={{display:"flex",gap:10,marginBottom:14}}>
+          <button className="btn btn-p" style={{flex:1}} onClick={guardarPagina} disabled={load}>💾 Guardar e publicar</button>
+          <button className="btn btn-s" style={{flex:1}} onClick={() => setEditandoPag(false)}>Cancelar</button>
+        </div>
+
+        {msg && <div className="al al-ok">{msg}</div>}
+      </div>
+    );
+  }
 
   // JÁ TEM CLÍNICA
   if (org) {
@@ -4574,6 +5116,11 @@ function Clinica({ user, onUpdate }) {
             {user.is_org_owner ? "És o dono desta clínica — vês todos os pacientes da equipa." : "És profissional desta clínica — vês os teus pacientes."}
           </div>
           {user.nome_profissional && <div style={{fontSize:".68rem",color:"#3d5a7a"}}>O teu nome de atendimento: <strong style={{color:"#5ae0d8"}}>{user.nome_profissional}</strong></div>}
+        </div>
+
+        <div className="card">
+          <button className="btn btn-p" style={{width:"100%"}} onClick={abrirEditorPagina}>✏️ Editar página pública</button>
+          {cfgPag?.site_slug && <div style={{fontSize:".64rem",color:"#3d5a7a",marginTop:8,textAlign:"center"}}>Link: <strong style={{color:"#00c6b8"}}>{window.location.origin}/?site={cfgPag.site_slug}</strong></div>}
         </div>
 
         {user.is_org_owner && (
@@ -6327,7 +6874,7 @@ function SitePreview({ cfg, editavel, onEditar }) {
         {cfg.horario && <div style={{textAlign:"center",fontSize:".78rem",color:"#8a9a98"}}>🕐 {cfg.horario}</div>}
       </div>
 
-      <div style={{textAlign:"center",padding:"10px 0",fontSize:".62rem",color:"#c8d4d2",background:"#fff"}}>Criado com VitalDoctor</div>
+      <div style={{textAlign:"center",padding:"10px 0",fontSize:".62rem",color:"#c8d4d2",background:"#fff"}}>© {new Date().getFullYear()}</div>
     </div>
   );
 }
@@ -6428,7 +6975,7 @@ function SitePublico({ slug }) {
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#eef3f2,#f8fafa)",padding:"20px 14px"}}>
       <SitePreview cfg={cfg} />
       <CaptacaoLead slug={slug} terapeutaId={terapeutaId} cfg={cfg} />
-      <div style={{textAlign:"center",fontSize:".62rem",color:"#b8c4c2",marginTop:18,paddingBottom:20}}>Criado com VitalDoctor</div>
+      <div style={{textAlign:"center",fontSize:".62rem",color:"#b8c4c2",marginTop:18,paddingBottom:20}}>© {new Date().getFullYear()}</div>
     </div>
   );
 }
