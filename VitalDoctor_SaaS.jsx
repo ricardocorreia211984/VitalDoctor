@@ -5879,11 +5879,19 @@ function PainelSuperAdmin({ user }) {
     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '100vh', gap: 0, background: '#050810' }}>
       <div style={{ background: 'linear-gradient(180deg, #0d1828 0%, #061428 100%)', borderRight: '2px solid #d4a574', padding: '20px 0', maxHeight: '100vh', overflowY: 'auto' }}>
         <div style={{ padding: '12px 16px', borderBottom: '2px solid #d4a574', marginBottom: 12, fontWeight: 700, color: '#d4a574', fontSize: '0.8rem', textAlign: 'center' }}>👑 SUPER ADMIN</div>
-        {['overview', 'usuarios', 'modulos'].map(item => (
-          <button key={item} onClick={() => setAbaSuperAdmin(item)} style={{ width: '100%', padding: '10px 12px', textAlign: 'left', background: abaSuperAdmin === item ? 'rgba(212, 165, 116, 0.2)' : 'transparent', border: 'none', borderLeft: abaSuperAdmin === item ? '3px solid #d4a574' : 'none', color: abaSuperAdmin === item ? '#d4a574' : '#8ba3c0', cursor: 'pointer', fontSize: '0.75rem', fontWeight: abaSuperAdmin === item ? 700 : 500 }}>
-            {item === 'overview' && '📊 Visão'}
-            {item === 'usuarios' && '👥 Users'}
-            {item === 'modulos' && '📦 Mods'}
+        {[
+          { id: 'overview', icon: '📊', label: 'Visão Geral', desc: 'Dashboard' },
+          { id: 'usuarios', icon: '👥', label: 'Utilizadores', desc: 'Gestão' },
+          { id: 'modulos', icon: '📦', label: 'Módulos', desc: 'Customizados' },
+          { id: 'conteudo_metodo', icon: '⚙️', label: 'Conteúdo Método', desc: 'Especializado' },
+          { id: 'pontos_mapeamento', icon: '🗺️', label: 'Pontos Mapeamento', desc: 'Visual' },
+        ].map(item => (
+          <button key={item.id} onClick={() => setAbaSuperAdmin(item.id)} style={{ width: '100%', padding: '10px 12px', textAlign: 'left', background: abaSuperAdmin === item.id ? 'rgba(212, 165, 116, 0.2)' : 'transparent', border: 'none', borderLeft: abaSuperAdmin === item.id ? '3px solid #d4a574' : 'none', color: abaSuperAdmin === item.id ? '#d4a574' : '#8ba3c0', cursor: 'pointer', fontSize: '0.75rem', fontWeight: abaSuperAdmin === item.id ? 700 : 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <span>{item.icon}</span>
+              <div style={{ fontWeight: 700 }}>{item.label}</div>
+            </div>
+            <div style={{ fontSize: '0.6rem', color: '#3d5a7a', marginLeft: 24 }}>{item.desc}</div>
           </button>
         ))}
       </div>
@@ -5893,8 +5901,10 @@ function PainelSuperAdmin({ user }) {
             {abaSuperAdmin === 'overview' && '📊 Visão Geral'}
             {abaSuperAdmin === 'usuarios' && '👥 Utilizadores'}
             {abaSuperAdmin === 'modulos' && '📦 Módulos'}
+            {abaSuperAdmin === 'conteudo_metodo' && '⚙️ Conteúdo do Método'}
+            {abaSuperAdmin === 'pontos_mapeamento' && '🗺️ Pontos do Mapeamento'}
           </h1>
-          {['usuarios', 'modulos'].includes(abaSuperAdmin) && <button onClick={() => setModoEdicaoAdmin(!modoEdicaoAdmin)} style={{ padding: '8px 14px', background: modoEdicaoAdmin ? '#d4a574' : '#00c6b8', color: '#050810', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}>{modoEdicaoAdmin ? '✏️ Editar' : '👁️ Ver'}</button>}
+          {['usuarios', 'modulos', 'conteudo_metodo', 'pontos_mapeamento'].includes(abaSuperAdmin) && <button onClick={() => setModoEdicaoAdmin(!modoEdicaoAdmin)} style={{ padding: '8px 14px', background: modoEdicaoAdmin ? '#d4a574' : '#00c6b8', color: '#050810', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}>{modoEdicaoAdmin ? '✏️ Editar' : '👁️ Ver'}</button>}
         </div>
         <div style={{ padding: '20px 24px' }}>
           {abaSuperAdmin === 'overview' && (
@@ -5923,6 +5933,64 @@ function PainelSuperAdmin({ user }) {
                   <div style={{ fontSize: '0.65rem', color: '#8ba3c0' }}>{m.bloqueado_com ? `🔒 ${m.bloqueado_com}` : '✅ Pub'}</div>
                 </div>
               ))}
+            </div>
+          )}
+          {abaSuperAdmin === 'conteudo_metodo' && (
+            <div className="fade">
+              <div style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '1px solid #d4a574', borderRadius: 8, padding: 16 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#d4a574', marginBottom: 16 }}>⚙️ Conteúdo do Método</div>
+                {!modoEdicaoAdmin ? (
+                  <div>
+                    <div style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dde4f0', marginBottom: 8 }}>📖 Nome</div>
+                      <div style={{ fontSize: '0.8rem', color: '#8ba3c0' }}>Método Especializado de Ansiedade & Depressão</div>
+                    </div>
+                    <div style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dde4f0', marginBottom: 8 }}>📝 Descrição</div>
+                      <div style={{ fontSize: '0.8rem', color: '#8ba3c0' }}>Abordagem integrada. Certificado.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="lbl" style={{ fontSize: '0.7rem' }}>📖 Nome</label>
+                      <input className="inp" defaultValue="Método Especializado de Ansiedade & Depressão" />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="lbl" style={{ fontSize: '0.7rem' }}>📝 Descrição</label>
+                      <textarea className="inp" defaultValue="Abordagem integrada" style={{ minHeight: '60px' }} />
+                    </div>
+                    <button className="btn btn-p" style={{ width: '100%', fontSize: '0.75rem' }}>💾 Guardar</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {abaSuperAdmin === 'pontos_mapeamento' && (
+            <div className="fade">
+              <div style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '1px solid #d4a574', borderRadius: 8, padding: 16 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#d4a574', marginBottom: 16 }}>🗺️ Pontos do Mapeamento</div>
+                {!modoEdicaoAdmin ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                    {[{ zona: 'Cabeça', pontos: ['Ansiedade', 'Stress'] }, { zona: 'Peito', pontos: ['Medo', 'Pânico'] }].map((zona, i) => (
+                      <div key={i} style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 10 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d4a574', marginBottom: 8 }}>📍 {zona.zona}</div>
+                        {zona.pontos.map((p, j) => (<div key={j} style={{ fontSize: '0.7rem', color: '#8ba3c0' }}>• {p}</div>))}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="lbl" style={{ fontSize: '0.7rem' }}>📍 Zona</label>
+                      <input className="inp" placeholder="Ex: Garganta" style={{ marginBottom: 6 }} />
+                      <label className="lbl" style={{ fontSize: '0.7rem' }}>Pontos Emocionais</label>
+                      <input className="inp" placeholder="Ex: Falta de voz" />
+                    </div>
+                    <button className="btn btn-p" style={{ width: '100%', fontSize: '0.75rem', marginTop: 12 }}>💾 Guardar</button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
