@@ -2172,6 +2172,7 @@ function EditorModulo({ modulo, user, onSalvar, onVoltar }) {
   const [cfg, setCfg] = useState(modulo);
   const [aGuardar, setAGuardar] = useState(false);
   const [secaoAberta, setSecaoAberta] = useState(null);
+  const [construindoMapeamento, setConstruindoMapeamento] = useState(false);
 
   const guardar = async () => {
     setAGuardar(true);
@@ -2179,6 +2180,11 @@ function EditorModulo({ modulo, user, onSalvar, onVoltar }) {
     setAGuardar(false);
     onSalvar && onSalvar();
   };
+
+  // MODO CONSTRUTOR DE MAPEAMENTO
+  if (construindoMapeamento) {
+    return <ConstruitorMapeamentoDinamico modulo={cfg} onSalvar={() => { setCfg({...cfg}); setConstruindoMapeamento(false); }} onVoltar={() => setConstruindoMapeamento(false)} />;
+  }
 
   const Secao = ({ titulo, conteudo }) => {
     const open = secaoAberta === titulo;
@@ -2231,11 +2237,58 @@ function EditorModulo({ modulo, user, onSalvar, onVoltar }) {
       {/* FLUXO DE CONSULTA */}
       <Secao titulo="🎯 Fluxo da Consulta" conteudo={
         <>
-          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Define os passos que a consulta segue (acolhimento, avaliação, resultado, etc.)</div>
-          <label className="lbl">Passos (um por linha)</label>
-          <textarea className="inp mb8" rows={4} value={(cfg.fluxo?.passos || []).map(p => typeof p === "string" ? p : p.nome).join("\n")} 
-            onChange={e => setCfg({...cfg, fluxo: {...cfg.fluxo, passos: e.target.value.split("\n").filter(x => x.trim()).map(p => ({nome: p}))}}) } 
-            placeholder="Ex:&#10;1. Acolhimento&#10;2. Avaliação&#10;3. Interpretação&#10;4. Protocolo&#10;5. Relatório&#10;..." />
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Define os passos que a consulta segue. Edita nome, descrição e instruções de cada um.</div>
+          
+          {(cfg.fluxo?.passos || []).length === 0 ? (
+            <div style={{fontSize:".7rem",color:"#3d5a7a",padding:10,background:"#050810",borderRadius:8,marginBottom:10}}>
+              Nenhum passo definido. Adiciona alguns:
+            </div>
+          ) : (
+            <div style={{marginBottom:10}}>
+              {cfg.fluxo.passos.map((p, i) => (
+                <div key={i} style={{marginBottom:10,padding:10,background:"#050810",borderRadius:8,border:"1px solid #0d1828"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div style={{fontSize:".7rem",fontWeight:700,color:"#5ae0d8"}}>Passo {i + 1}</div>
+                    <div style={{display:"flex",gap:4,flexShrink:0,flexDirection:"row"}}>
+                      <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".65rem",padding:"4px 6px"}} disabled={i === 0} onClick={() => {
+                        const novos = [...cfg.fluxo.passos];
+                        [novos[i], novos[i-1]] = [novos[i-1], novos[i]];
+                        setCfg({...cfg, fluxo: {...cfg.fluxo, passos: novos}});
+                      }}>⬆️</button>
+                      <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".65rem",padding:"4px 6px"}} disabled={i === cfg.fluxo.passos.length - 1} onClick={() => {
+                        const novos = [...cfg.fluxo.passos];
+                        [novos[i], novos[i+1]] = [novos[i+1], novos[i]];
+                        setCfg({...cfg, fluxo: {...cfg.fluxo, passos: novos}});
+                      }}>⬇️</button>
+                      <button className="btn btn-s btn-sm" style={{width:"auto",color:"#d9534f",fontSize:".65rem",padding:"4px 6px"}} onClick={() => {
+                        const novos = cfg.fluxo.passos.filter((_, idx) => idx !== i);
+                        setCfg({...cfg, fluxo: {...cfg.fluxo, passos: novos}});
+                      }}>🗑️</button>
+                    </div>
+                  </div>
+                  
+                  <label className="lbl" style={{fontSize:".65rem"}}>Nome do passo</label>
+                  <input className="inp mb8" value={p.nome || ""} onChange={e => {
+                    const novos = [...cfg.fluxo.passos];
+                    novos[i] = {...p, nome: e.target.value};
+                    setCfg({...cfg, fluxo: {...cfg.fluxo, passos: novos}});
+                  }} placeholder="Ex: Acolhimento, Avaliação, Protocolo" style={{fontSize:".7rem"}} />
+                  
+                  <label className="lbl" style={{fontSize:".65rem"}}>Descrição/Instruções</label>
+                  <textarea className="inp mb8" rows={2} value={p.descricao || ""} onChange={e => {
+                    const novos = [...cfg.fluxo.passos];
+                    novos[i] = {...p, descricao: e.target.value};
+                    setCfg({...cfg, fluxo: {...cfg.fluxo, passos: novos}});
+                  }} placeholder="Ex: Selecciona os itens aplicáveis" style={{fontSize:".7rem"}} />
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <button className="btn btn-s btn-sm" style={{width:"100%"}} onClick={() => {
+            const novoPasso = {nome: `Passo ${(cfg.fluxo?.passos || []).length + 1}`, descricao: ""};
+            setCfg({...cfg, fluxo: {...cfg.fluxo, passos: [...(cfg.fluxo?.passos || []), novoPasso]}});
+          }}>+ Adicionar passo</button>
         </>
       } />
 
@@ -2250,7 +2303,13 @@ function EditorModulo({ modulo, user, onSalvar, onVoltar }) {
         </>
       } />
 
-      {/* TEMPLATE DO RELATÓRIO */}
+      {/* Secção de Mapeamento Dinâmico */}
+      <Secao titulo="🗺️ Mapeamento Dinâmico (Agnóstico)" conteudo={
+        <>
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Cria a estrutura do teu mapeamento. Define áreas/seções e itens/pontos. Totalmente customizável, nenhuma estrutura pré-definida.</div>
+          <button className="btn btn-p btn-sm" style={{width:"100%"}} onClick={() => setConstruindoMapeamento(true)}>🗺️ Abrir Construtor de Mapeamento</button>
+        </>
+      } />
       <Secao titulo="📄 Template do Relatório" conteudo={
         <>
           <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Template com variáveis {{nome_paciente}}, {{data}}, {{criterios_acionados}}, etc.</div>
@@ -2307,12 +2366,32 @@ function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar
 
   const handleGuardar = async () => {
     setLoad(true);
+    
+    // Recolher protocolos dos itens marcados
+    const protocolosAtivos = [];
+    if (modulo.biblioteca?.secoes) {
+      modulo.biblioteca.secoes.forEach(secao => {
+        if (secao.itens) {
+          secao.itens.forEach(item => {
+            if (dados[`${secao.nome}_${item.nome}`] && item.protocolo) {
+              protocolosAtivos.push(`${item.nome}: ${item.protocolo}`);
+            }
+          });
+        }
+      });
+    }
+    
     // Substituir variáveis no template
     let relatorio = modulo.template_relatorio || "";
     relatorio = relatorio.replace(/{{nome_paciente}}/g, paciente?.nome || "Paciente");
     relatorio = relatorio.replace(/{{data}}/g, fmtData(new Date()));
-    relatorio = relatorio.replace(/{{criterios_acionados}}/g, Object.entries(dados).filter(([k,v]) => v).map(([k]) => k).join(", ") || "(nenhum)");
-    relatorio = relatorio.replace(/{{protocolos_indicados}}/g, (modulo.biblioteca?.protocolos || []).slice(0, 3).join(" | ") || "(nenhum)");
+    
+    const itensAtivos = Object.entries(dados)
+      .filter(([k,v]) => v && !k.startsWith("passo_"))
+      .map(([k]) => k.split("_").pop())
+      .join(", ");
+    relatorio = relatorio.replace(/{{criterios_acionados}}/g, itensAtivos || "(nenhum)");
+    relatorio = relatorio.replace(/{{protocolos_indicados}}/g, protocolosAtivos.length > 0 ? protocolosAtivos.join("\n") : "(nenhum)");
 
     const consulta = {
       paciente_id: paciente?.id,
@@ -2323,7 +2402,7 @@ function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar
       modulo_nome: modulo.nome,
       dados_modulo: dados,
       relatorio: relatorio,
-      notas: `Módulo: ${modulo.nome} | Passos: ${passos.length}`,
+      notas: `Módulo: ${modulo.nome} | Itens marcados: ${itensAtivos}`,
     };
 
     const { error } = await sb.from("consultas").insert(consulta);
@@ -2351,9 +2430,14 @@ function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar
 
       {/* PASSO ATUAL */}
       <div className="card" style={{marginBottom:14}}>
-        <div style={{fontSize:".9rem",fontWeight:700,color:"#dde4f0",marginBottom:12}}>
+        <div style={{fontSize:".9rem",fontWeight:700,color:"#dde4f0",marginBottom:4}}>
           {passo?.nome || "Passo"}
         </div>
+        {passo?.descricao && (
+          <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:12,paddingBottom:10,borderBottom:"1px solid #0d1828"}}>
+            {passo.descricao}
+          </div>
+        )}
 
         {/* CONTEÚDO DO PASSO (dinâmico) */}
         {passoAtual === 0 && (
@@ -2369,13 +2453,42 @@ function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar
 
         {passoAtual === 1 && (
           <div>
-            <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>Selecciona os critérios aplicáveis:</div>
-            {(modulo.biblioteca?.criterios || []).map((crit, i) => (
-              <label key={i} style={{display:"flex",gap:8,padding:"8px 0",alignItems:"center",fontSize:".75rem",cursor:"pointer"}}>
-                <input type="checkbox" checked={dados[crit] || false} onChange={e => setDados({...dados, [crit]: e.target.checked})} />
-                <span style={{color:"#b0c4d8"}}>{crit}</span>
-              </label>
+            <div style={{fontSize:".75rem",color:"#5a7a9a",marginBottom:10}}>
+              {modulo.biblioteca?.secoes?.length > 0 ? "Selecciona os itens aplicáveis:" : "Selecciona os critérios aplicáveis:"}
+            </div>
+            
+            {/* Renderizar seções dinâmicas (novo sistema) */}
+            {modulo.biblioteca?.secoes?.length > 0 && modulo.biblioteca.secoes.map((secao, i) => (
+              <div key={secao.id || i} style={{marginBottom:14}}>
+                <div style={{fontSize:".8rem",fontWeight:700,color:"#5ae0d8",marginBottom:6}}>
+                  <span style={{fontSize:"1.1rem",marginRight:6}}>{secao.icone || "📋"}</span>
+                  {secao.nome}
+                </div>
+                {secao.descricao && (
+                  <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:8,paddingLeft:10}}>
+                    {secao.descricao}
+                  </div>
+                )}
+                <div style={{paddingLeft:10,borderLeft:"2px solid #1a5a4c"}}>
+                  {secao.itens && secao.itens.map((item, j) => (
+                    <label key={item.id || j} style={{display:"flex",gap:8,padding:"6px 0",alignItems:"center",fontSize:".73rem",cursor:"pointer"}}>
+                      <input type="checkbox" checked={dados[`${secao.nome}_${item.nome}`] || false} onChange={e => setDados({...dados, [`${secao.nome}_${item.nome}`]: e.target.checked})} />
+                      <span style={{color:"#b0c4d8"}}>{item.nome}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
+
+            {/* Retrocompatibilidade: critérios antigos */}
+            {(!modulo.biblioteca?.secoes || modulo.biblioteca.secoes.length === 0) && modulo.biblioteca?.criterios && (
+              modulo.biblioteca.criterios.map((crit, i) => (
+                <label key={i} style={{display:"flex",gap:8,padding:"8px 0",alignItems:"center",fontSize:".75rem",cursor:"pointer"}}>
+                  <input type="checkbox" checked={dados[crit] || false} onChange={e => setDados({...dados, [crit]: e.target.checked})} />
+                  <span style={{color:"#b0c4d8"}}>{crit}</span>
+                </label>
+              ))
+            )}
           </div>
         )}
 
@@ -2387,9 +2500,29 @@ function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar
 
         {passoAtual === passos.length - 1 && (
           <div style={{fontSize:".75rem",color:"#5a7a9a"}}>
-            <div style={{marginBottom:10}}>Pronto para gerar relatório com os dados recolhidos.</div>
-            <div style={{padding:10,background:"#050810",borderRadius:8,fontSize:".7rem",color:"#3d5a7a"}}>
-              Critérios marcados: {Object.entries(dados).filter(([k,v]) => v && k !== "passo_2" && k !== "passo_3").map(([k]) => k).join(", ") || "nenhum"}
+            <div style={{marginBottom:12}}>Revisão dos protocolos recomendados:</div>
+            
+            {/* Protocolo por item marcado */}
+            {modulo.biblioteca?.secoes && modulo.biblioteca.secoes.map((secao, i) => {
+              const itensComProtocolo = secao.itens?.filter(item => dados[`${secao.nome}_${item.nome}`] && item.protocolo) || [];
+              if (itensComProtocolo.length === 0) return null;
+              return (
+                <div key={i} style={{marginBottom:12,padding:10,background:"#050810",borderRadius:8,border:"1px solid #1a5a4c"}}>
+                  <div style={{fontSize:".78rem",fontWeight:700,color:"#5ae0d8",marginBottom:6}}>
+                    {secao.icone || "📋"} {secao.nome}
+                  </div>
+                  {itensComProtocolo.map((item, j) => (
+                    <div key={j} style={{fontSize:".7rem",color:"#b0c4d8",marginBottom:6,paddingLeft:8,borderLeft:"2px solid #1a7a7c"}}>
+                      <strong>{item.nome}</strong><br/>
+                      📋 {item.protocolo}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            
+            <div style={{padding:10,background:"#050810",borderRadius:8,fontSize:".7rem",color:"#3d5a7a",marginTop:12}}>
+              ✅ Pronto? Clica em "Gerar relatório e guardar" para finalizar.
             </div>
           </div>
         )}
@@ -2406,6 +2539,147 @@ function ExecutorModuloCustomizado({ modulo, paciente, user, onGuardar, onVoltar
       </div>
 
       {msg && <div className="al al-ok" style={{marginTop:10}}>{msg}</div>}
+    </div>
+  );
+}
+
+// ════════ Construtor Dinâmico de Mapeamento (Agnóstico) ════════
+function ConstruitorMapeamentoDinamico({ modulo, onSalvar, onVoltar }) {
+  const [cfg, setCfg] = useState(modulo?.biblioteca || { secoes: [] });
+  const [novaSecao, setNovaSecao] = useState("");
+  const [expandidas, setExpandidas] = useState({});
+  const [load, setLoad] = useState(false);
+
+  const adicionarSecao = () => {
+    if (!novaSecao.trim()) return;
+    const novas = [...cfg.secoes, { id: Date.now(), nome: novaSecao, itens: [] }];
+    setCfg({ ...cfg, secoes: novas });
+    setNovaSecao("");
+  };
+
+  const adicionarItem = (secaoId) => {
+    const secoes = cfg.secoes.map(s => 
+      s.id === secaoId ? { ...s, itens: [...s.itens, { id: Date.now(), nome: `Item ${s.itens.length + 1}` }] } : s
+    );
+    setCfg({ ...cfg, secoes });
+  };
+
+  const atualizarSecao = (secaoId, campo, valor) => {
+    const secoes = cfg.secoes.map(s => s.id === secaoId ? { ...s, [campo]: valor } : s);
+    setCfg({ ...cfg, secoes });
+  };
+
+  const atualizarItem = (secaoId, itemId, campo, valor) => {
+    const secoes = cfg.secoes.map(s => 
+      s.id === secaoId ? { ...s, itens: s.itens.map(i => i.id === itemId ? { ...i, [campo]: valor } : i) } : s
+    );
+    setCfg({ ...cfg, secoes });
+  };
+
+  const deletarSecao = (secaoId) => {
+    setCfg({ ...cfg, secoes: cfg.secoes.filter(s => s.id !== secaoId) });
+  };
+
+  const deletarItem = (secaoId, itemId) => {
+    const secoes = cfg.secoes.map(s => 
+      s.id === secaoId ? { ...s, itens: s.itens.filter(i => i.id !== itemId) } : s
+    );
+    setCfg({ ...cfg, secoes });
+  };
+
+  const guardar = async () => {
+    setLoad(true);
+    await sb.from("custom_modules").update({ biblioteca: cfg }).eq("id", modulo.id);
+    setLoad(false);
+    onSalvar && onSalvar();
+  };
+
+  return (
+    <div className="fade">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:"1.05rem",fontWeight:700,color:"#dde4f0"}}>🗺️ Construtor de Mapeamento</div>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>← Voltar</button>
+      </div>
+
+      <div style={{fontSize:".72rem",background:"#0d1422",border:"1px solid #14233a",borderRadius:10,padding:12,marginBottom:14,color:"#5a7a9a",lineHeight:1.5}}>
+        Define as "áreas" ou "seções" do teu mapeamento. Tu escolhes os nomes e quantos itens em cada. Completamente customizável.
+      </div>
+
+      {/* ADICIONAR NOVA SEÇÃO */}
+      <div className="card" style={{marginBottom:14}}>
+        <label className="lbl">Adicionar nova área/seção</label>
+        <div style={{display:"flex",gap:8}}>
+          <input className="inp" value={novaSecao} onChange={e => setNovaSecao(e.target.value)} placeholder="Ex: Energia, Digestão, Emoções, etc." />
+          <button className="btn btn-p btn-sm" style={{width:"auto"}} onClick={adicionarSecao}>+ Adicionar</button>
+        </div>
+      </div>
+
+      {/* LISTA DE SEÇÕES */}
+      {cfg.secoes.length === 0 ? (
+        <div className="al al-i">Nenhuma seção criada. Começa a adicionar!</div>
+      ) : (
+        cfg.secoes.map((secao, idx) => (
+          <div key={secao.id} className="card" style={{marginBottom:10,borderColor:"#1a5a4c"}}>
+            {/* CABEÇALHO SEÇÃO */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+                  <input className="inp" style={{fontSize:"1.2rem",width:50}} value={secao.icone || "📋"} onChange={e => atualizarSecao(secao.id, "icone", e.target.value)} placeholder="🔴" maxLength={2} />
+                  <input className="inp" style={{fontSize:".85rem",fontWeight:700,flex:1}} value={secao.nome} onChange={e => atualizarSecao(secao.id, "nome", e.target.value)} placeholder="Nome da seção" />
+                </div>
+                <textarea className="inp mb8" rows={2} value={secao.descricao || ""} onChange={e => atualizarSecao(secao.id, "descricao", e.target.value)} placeholder="Descrição/instruções que aparece na consulta (ex: Selecciona os itens que se aplicam...)" style={{fontSize:".7rem"}} />
+              </div>
+              <div style={{display:"flex",gap:4,flexShrink:0,flexDirection:"column"}}>
+                <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".65rem",padding:"4px 6px"}} disabled={idx === 0} onClick={() => {
+                  const novos = [...cfg.secoes];
+                  [novos[idx], novos[idx-1]] = [novos[idx-1], novos[idx]];
+                  setCfg({...cfg, secoes: novos});
+                }}>⬆️</button>
+                <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".65rem",padding:"4px 6px"}} disabled={idx === cfg.secoes.length - 1} onClick={() => {
+                  const novos = [...cfg.secoes];
+                  [novos[idx], novos[idx+1]] = [novos[idx+1], novos[idx]];
+                  setCfg({...cfg, secoes: novos});
+                }}>⬇️</button>
+                <button className="btn btn-s btn-sm" style={{width:"auto",color:"#d9534f",whiteSpace:"nowrap",fontSize:".65rem",padding:"4px 6px"}} onClick={() => deletarSecao(secao.id)}>🗑️</button>
+              </div>
+            </div>
+
+            {/* ITENS DA SEÇÃO */}
+            <div style={{background:"#050810",borderRadius:8,padding:10,marginBottom:10}}>
+              <div style={{fontSize:".7rem",color:"#5a7a9a",marginBottom:8}}>Itens/Pontos ({secao.itens.length})</div>
+              {secao.itens.map((item, jdx) => (
+                <div key={item.id} style={{marginBottom:12,padding:10,background:"#0a1419",borderRadius:6,border:"1px solid #0d1828"}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+                    <input className="inp" value={item.nome} onChange={e => atualizarItem(secao.id, item.id, "nome", e.target.value)} placeholder="Nome do ponto/critério" style={{fontSize:".75rem",flex:1}} />
+                    <div style={{display:"flex",gap:3,flexShrink:0,flexDirection:"column"}}>
+                      <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".6rem",padding:"2px 4px"}} disabled={jdx === 0} onClick={() => {
+                        const novos = [...secao.itens];
+                        [novos[jdx], novos[jdx-1]] = [novos[jdx-1], novos[jdx]];
+                        atualizarSecao(secao.id, "itens", novos);
+                      }}>⬆️</button>
+                      <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".6rem",padding:"2px 4px"}} disabled={jdx === secao.itens.length - 1} onClick={() => {
+                        const novos = [...secao.itens];
+                        [novos[jdx], novos[jdx+1]] = [novos[jdx+1], novos[jdx]];
+                        atualizarSecao(secao.id, "itens", novos);
+                      }}>⬇️</button>
+                      <button className="btn btn-s btn-sm" style={{width:"auto",color:"#d9534f",fontSize:".6rem",padding:"2px 4px"}} onClick={() => deletarItem(secao.id, item.id)}>✕</button>
+                    </div>
+                  </div>
+                  <label className="lbl" style={{fontSize:".65rem"}}>Protocolo/Ação (aparece no relatório quando marcado)</label>
+                  <textarea className="inp" rows={2} value={item.protocolo || ""} onChange={e => atualizarItem(secao.id, item.id, "protocolo", e.target.value)} placeholder="Ex: Usar óleo de Mirra por 7 dias" style={{fontSize:".7rem"}} />
+                </div>
+              ))}
+              <button className="btn btn-s btn-sm" style={{width:"100%",marginTop:8}} onClick={() => adicionarItem(secao.id)}>+ Adicionar item</button>
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* BOTÃO GUARDAR */}
+      <div style={{display:"flex",gap:10}}>
+        <button className="btn btn-p" style={{flex:1}} onClick={guardar} disabled={load}>💾 {load ? "A guardar..." : "Guardar estrutura"}</button>
+        <button className="btn btn-s" style={{flex:1}} onClick={onVoltar}>Cancelar</button>
+      </div>
     </div>
   );
 }
@@ -4986,6 +5260,510 @@ function Questionario({ user, initForm }) {
   );
 }
 
+// DASHBOARD COM KPIs
+function DashboardClinica({ user, org }) {
+  const [stats, setStats] = useState({ consultas: 0, consultasReais: 0, pacientes: 0, receita: 0, consultasHoje: 0 });
+  const [ultimasConsultas, setUltimasConsultas] = useState([]);
+  const [load, setLoad] = useState(true);
+
+  useEffect(() => {
+    const carregar = async () => {
+      setLoad(true);
+      
+      // Total de consultas
+      const { count: totalConsultas } = await sb.from("consultas").select("id", { count: "exact" }).eq("terapeuta_id", user.id);
+      
+      // Consultas neste mês
+      const agora = new Date();
+      const mesAtual = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,"0")}`;
+      const { data: consultasMes } = await sb.from("consultas").select("id").eq("terapeuta_id", user.id).gte("data", mesAtual);
+      
+      // Pacientes únicos
+      const { data: pacientes } = await sb.from("pacientes").select("id").eq("terapeuta_id", user.id);
+      
+      // Consultas hoje
+      const hoje = agora.toISOString().split("T")[0];
+      const { data: hojeDados } = await sb.from("consultas").select("id").eq("terapeuta_id", user.id).eq("data", hoje);
+      
+      setStats({
+        consultas: totalConsultas || 0,
+        consultasReais: consultasMes?.length || 0,
+        pacientes: pacientes?.length || 0,
+        receita: 0, // manual no futuro
+        consultasHoje: hojeDados?.length || 0
+      });
+      
+      // Últimas 5 consultas
+      const { data: ultimas } = await sb.from("consultas")
+        .select("id,data,pacientes(nome),tipo")
+        .eq("terapeuta_id", user.id)
+        .order("data", { ascending: false })
+        .limit(5);
+      setUltimasConsultas(ultimas || []);
+      setLoad(false);
+    };
+    
+    if (user?.id) carregar();
+  }, [user?.id]);
+
+  if (load) return <div style={{textAlign:"center",color:"#3d5a7a",padding:20}}>A carregar dashboard...</div>;
+
+  return (
+    <div style={{marginBottom:20}}>
+      <div style={{fontSize:"1rem",fontWeight:700,color:"#5ae0d8",marginBottom:12}}>📊 Resumo do Mês</div>
+      
+      {/* KPIs em grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+        <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12}}>
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:4}}>Consultas este mês</div>
+          <div style={{fontSize:"1.6rem",fontWeight:700,color:"#00c6b8"}}>{stats.consultasReais}</div>
+        </div>
+        
+        <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12}}>
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:4}}>Pacientes ativos</div>
+          <div style={{fontSize:"1.6rem",fontWeight:700,color:"#5ae0d8"}}>{stats.pacientes}</div>
+        </div>
+        
+        <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12}}>
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:4}}>Total de consultas</div>
+          <div style={{fontSize:"1.6rem",fontWeight:700,color:"#00c6b8"}}>{stats.consultas}</div>
+        </div>
+        
+        <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12}}>
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:4}}>Consultas hoje</div>
+          <div style={{fontSize:"1.6rem",fontWeight:700,color:"#5ae0d8"}}>{stats.consultasHoje}</div>
+        </div>
+      </div>
+
+      {/* Últimas consultas */}
+      {ultimasConsultas.length > 0 && (
+        <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12,marginBottom:14}}>
+          <div style={{fontSize:".7rem",fontWeight:700,color:"#5ae0d8",marginBottom:10}}>📋 Últimas consultas</div>
+          {ultimasConsultas.map((c,i) => (
+            <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:".65rem",padding:"6px 0",borderBottom:i<ultimasConsultas.length-1?"1px solid #0d1828":"none",color:"#b0c4d8"}}>
+              <div>{c.pacientes?.nome || "Paciente"}</div>
+              <div>{c.data?.split(" ")[0] || ""}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// SISTEMA DE LEMBRETES AUTOMÁTICOS
+function SistemaLembretes({ user }) {
+  const [apiKey, setApiKey] = useState(localStorage.getItem("brevo_key") || "");
+  const [load, setLoad] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [agendadas, setAgendadas] = useState([]);
+
+  useEffect(() => {
+    carregar();
+  }, [user?.id]);
+
+  const carregar = async () => {
+    // Consultas agendadas para amanhã
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    const dataAmanha = amanha.toISOString().split("T")[0];
+
+    const { data } = await sb.from("consultas")
+      .select("id,data,pacientes(nome,email),terapeuta_id")
+      .eq("terapeuta_id", user.id)
+      .eq("data", dataAmanha)
+      .is("lembrete_enviado", null);
+
+    setAgendadas(data || []);
+  };
+
+  const enviarLembrete = async (consulta) => {
+    if (!apiKey.trim()) {
+      setMsg("⚠️ Configura a chave Brevo. Grátis em brevo.com");
+      return;
+    }
+
+    if (!consulta.pacientes?.email) {
+      setMsg("Paciente não tem email!");
+      return;
+    }
+
+    setLoad(true);
+
+    try {
+      // Chamar API Brevo
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": apiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          to: [{ email: consulta.pacientes.email, name: consulta.pacientes.nome }],
+          subject: "⏰ Lembrete: Consulta amanhã",
+          htmlContent: `
+            <h2>Olá ${consulta.pacientes.nome}!</h2>
+            <p>Tens uma consulta agendada para <strong>amanhã</strong>.</p>
+            <p style="color:#00c6b8"><strong>Data:</strong> ${consulta.data}</p>
+            <p style="color:#666">Confirma presença ou avisa-nos se não consegues aparecer.</p>
+            <p style="font-size:12px;color:#999">Plataforma VitalDoctor</p>
+          `,
+          sender: { name: "VitalDoctor", email: "noreply@vitaldoctor.app" },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Marcar como enviado no Supabase
+        await sb.from("consultas").update({ lembrete_enviado: new Date().toISOString() }).eq("id", consulta.id);
+        setMsg("✅ Lembrete enviado!");
+        setTimeout(() => carregar(), 1500);
+      } else {
+        setMsg("❌ Erro ao enviar: " + (result.message || "Verifica a chave API"));
+      }
+    } catch (err) {
+      setMsg("❌ Erro de rede: " + err.message);
+    }
+
+    setLoad(false);
+  };
+
+  const guardarChave = () => {
+    localStorage.setItem("brevo_key", apiKey);
+    setMsg("✅ Chave Brevo guardada (armazenamento local)");
+    setTimeout(() => setMsg(""), 2000);
+  };
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#5ae0d8", marginBottom: 12 }}>
+        📬 Lembretes Automáticos
+      </div>
+
+      {/* Configuração da chave */}
+      <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12,marginBottom:14}}>
+        <label className="lbl" style={{fontSize:".7rem"}}>Chave API Brevo (grátis em brevo.com)</label>
+        <div style={{display:"flex",gap:8}}>
+          <input
+            className="inp"
+            type="password"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder="sk-..."
+            style={{fontSize:".7rem",flex:1}}
+          />
+          <button className="btn btn-s" style={{width:"auto"}} onClick={guardarChave} disabled={!apiKey.trim()}>
+            💾
+          </button>
+        </div>
+        <div style={{fontSize:".6rem",color:"#3d5a7a",marginTop:6}}>
+          🔒 Guardado no navegador (privado). <a href="https://www.brevo.com/free-account/" target="_blank" rel="noopener noreferrer" style={{color:"#00c6b8"}}>Cria conta grátis aqui.</a>
+        </div>
+      </div>
+
+      {/* Lista de consultas agendadas */}
+      {agendadas.length > 0 ? (
+        <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12}}>
+          <div style={{fontSize:".7rem",fontWeight:700,color:"#b0c4d8",marginBottom:10}}>
+            {agendadas.length} consulta(s) para amanhã
+          </div>
+          {agendadas.map(c => (
+            <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #0d1828"}}>
+              <div>
+                <div style={{fontSize:".7rem",color:"#b0c4d8",fontWeight:600}}>{c.pacientes?.nome}</div>
+                <div style={{fontSize:".6rem",color:"#3d5a7a"}}>{c.pacientes?.email}</div>
+              </div>
+              <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:".65rem"}} onClick={() => enviarLembrete(c)} disabled={load}>
+                📨 Enviar
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{fontSize:".7rem",color:"#3d5a7a",padding:12,background:"#050810",borderRadius:8}}>
+          Sem consultas agendadas para amanhã.
+        </div>
+      )}
+
+      {msg && <div style={{marginTop:10,fontSize:".7rem",color:msg.includes("✅")?"#00c6b8":"#d9534f"}}>{msg}</div>}
+    </div>
+  );
+}
+
+// SISTEMA WHATSAPP INTEGRADO (3 OPÇÕES GRÁTIS)
+function SistemaWhatsApp({ user }) {
+  const [metodo, setMetodo] = useState(localStorage.getItem("whatsapp_metodo") || "direto");
+  const [telefone, setTelefone] = useState(localStorage.getItem("whatsapp_telefone") || user?.telefone || "");
+  const [chaveWhatsApp, setChaveWhatsApp] = useState(localStorage.getItem("whatsapp_api_key") || "");
+  const [msg, setMsg] = useState("");
+  const [load, setLoad] = useState(false);
+  const [proximas, setProximas] = useState([]);
+
+  useEffect(() => {
+    carregarConsultas();
+  }, [user?.id]);
+
+  const carregarConsultas = async () => {
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    const dataAmanha = amanha.toISOString().split("T")[0];
+
+    const { data } = await sb.from("consultas")
+      .select("id,data,pacientes(nome,telefone,email)")
+      .eq("terapeuta_id", user.id)
+      .eq("data", dataAmanha);
+
+    setProximas(data || []);
+  };
+
+  const guardarConfigs = () => {
+    localStorage.setItem("whatsapp_metodo", metodo);
+    localStorage.setItem("whatsapp_telefone", telefone);
+    localStorage.setItem("whatsapp_api_key", chaveWhatsApp);
+    setMsg("✅ Configurações WhatsApp guardadas!");
+    setTimeout(() => setMsg(""), 2000);
+  };
+
+  // OPÇÃO 1: Link direto (wa.me)
+  const enviarWhatsAppDireto = (paciente) => {
+    const numero = paciente.telefone?.replace(/\D/g, "");
+    const mensagem = encodeURIComponent(
+      `Olá ${paciente.nome}! Esta é uma confirmação/lembrete da tua consulta. Confirma presença ou avisa-nos se não consegues aparecer. Obrigado! 🙏`
+    );
+    window.open(`https://wa.me/${numero}?text=${mensagem}`, "_blank");
+  };
+
+  // OPÇÃO 2: WhatsApp Business API (oficial)
+  const enviarWhatsAppAPI = async (paciente) => {
+    if (!chaveWhatsApp.trim()) {
+      setMsg("⚠️ Configura a chave WhatsApp Business API");
+      return;
+    }
+
+    if (!paciente.telefone) {
+      setMsg("Paciente não tem telefone!");
+      return;
+    }
+
+    setLoad(true);
+
+    try {
+      const numero = paciente.telefone.replace(/\D/g, "");
+      
+      // Chamada para WhatsApp Business API (Meta)
+      const response = await fetch(`https://graph.instagram.com/v18.0/YOUR_PHONE_ID/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${chaveWhatsApp}`,
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: numero,
+          type: "text",
+          text: {
+            preview_url: true,
+            body: `Olá ${paciente.nome}! Confirmação da tua consulta. Confirma presença. VitalDoctor 🙏`
+          }
+        }),
+      });
+
+      if (response.ok) {
+        setMsg("✅ Mensagem WhatsApp enviada!");
+        setTimeout(() => carregarConsultas(), 1500);
+      } else {
+        const err = await response.json();
+        setMsg("❌ Erro: " + (err.error?.message || "Verifica a chave"));
+      }
+    } catch (err) {
+      setMsg("❌ Erro de rede: " + err.message);
+    }
+
+    setLoad(false);
+  };
+
+  // OPÇÃO 3: Baileys Bot (alternativa grátis)
+  const copiarInstrucoesBaileys = () => {
+    const instrucoes = `
+# BAILEYS BOT (Grátis, alternativa WhatsApp)
+
+1. Cria um projeto Node.js:
+   npm init -y && npm install baileys qrcode
+
+2. Cria arquivo "bot.whatsapp.js":
+   const { default: makeWASocket } = require('@whiskeysockets/baileys');
+   
+   const sock = makeWASocket();
+   
+   sock.ev.on('messages.upsert', async (m) => {
+     const msg = m.messages[0];
+     if (!msg.key.fromMe) {
+       await sock.sendMessage(msg.key.remoteJid, { 
+         text: 'Olá! Confirmamos tua consulta. Responde SIM ou NÃO' 
+       });
+     }
+   });
+
+3. Deploy em Vercel ou Railway (grátis)
+
+4. Aponta webhook para VitalDoctor
+
+Tutorial completo: https://github.com/WhiskeySockets/Baileys
+    `;
+    navigator.clipboard.writeText(instrucoes);
+    setMsg("✅ Instruções copiadas! Cola num editor.");
+  };
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#5ae0d8", marginBottom: 12 }}>
+        📱 WhatsApp Integrado (3 Opções)
+      </div>
+
+      {/* Seletor de método */}
+      <div style={{background:"#050810",border:"1px solid #1a4a7c",borderRadius:8,padding:12,marginBottom:14}}>
+        <label className="lbl" style={{fontSize:".7rem",marginBottom:8}}>Escolhe o método WhatsApp:</label>
+        
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:".7rem"}}>
+            <input type="radio" value="direto" checked={metodo === "direto"} onChange={e => setMetodo(e.target.value)} />
+            <span>
+              <strong>Link Direto</strong> (100% grátis, instantâneo) — Botão "Chat WhatsApp"
+            </span>
+          </label>
+
+          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:".7rem"}}>
+            <input type="radio" value="api" checked={metodo === "api"} onChange={e => setMetodo(e.target.value)} />
+            <span>
+              <strong>API Oficial</strong> (1000 msg/mês grátis) — Automático + oficial
+            </span>
+          </label>
+
+          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:".7rem"}}>
+            <input type="radio" value="baileys" checked={metodo === "baileys"} onChange={e => setMetodo(e.target.value)} />
+            <span>
+              <strong>Baileys Bot</strong> (100% grátis) — Bot automático inteligente
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* OPÇÃO 1: Link Direto */}
+      {metodo === "direto" && (
+        <div style={{background:"#050810",border:"1px solid #0d7a5c",borderRadius:8,padding:12,marginBottom:14}}>
+          <div style={{fontSize:".75rem",fontWeight:700,color:"#00c6b8",marginBottom:10}}>📱 Link Direto WhatsApp</div>
+          
+          <label className="lbl" style={{fontSize:".65rem"}}>Teu número WhatsApp (com código país)</label>
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <input
+              className="inp"
+              value={telefone}
+              onChange={e => setTelefone(e.target.value)}
+              placeholder="+351912345678"
+              style={{fontSize:".7rem",flex:1}}
+            />
+            <button className="btn btn-s" onClick={guardarConfigs} style={{width:"auto"}}>💾</button>
+          </div>
+
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:10}}>
+            ✅ Simples e rápido. Cada paciente abre WhatsApp direto no seu telemóvel.
+          </div>
+
+          {proximas.length > 0 && (
+            <>
+              <div style={{fontSize:".7rem",fontWeight:700,color:"#b0c4d8",marginBottom:8}}>Enviar amanhã:</div>
+              {proximas.map(c => (
+                <button
+                  key={c.id}
+                  className="btn btn-s btn-sm"
+                  style={{width:"100%",marginBottom:6,textAlign:"left",fontSize:".65rem",justifyContent:"flex-start"}}
+                  onClick={() => enviarWhatsAppDireto(c.pacientes)}
+                >
+                  💬 {c.pacientes?.nome} — Abrir WhatsApp
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* OPÇÃO 2: API Oficial */}
+      {metodo === "api" && (
+        <div style={{background:"#050810",border:"1px solid #0d7a5c",borderRadius:8,padding:12,marginBottom:14}}>
+          <div style={{fontSize:".75rem",fontWeight:700,color:"#00c6b8",marginBottom:10}}>🔑 WhatsApp Business API</div>
+          
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:10}}>
+            1. Cria conta em <a href="https://www.whatsapp.com/business/api/" target="_blank" rel="noopener noreferrer" style={{color:"#00c6b8"}}>WhatsApp Business API</a><br/>
+            2. Obtém <strong>Phone ID</strong> + <strong>Access Token</strong><br/>
+            3. Cola abaixo
+          </div>
+
+          <label className="lbl" style={{fontSize:".65rem"}}>Phone ID (do teu número WhatsApp)</label>
+          <input className="inp mb8" type="text" placeholder="123456789..." style={{fontSize:".7rem"}} />
+
+          <label className="lbl" style={{fontSize:".65rem"}}>Access Token (da tua conta)</label>
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <input
+              className="inp"
+              type="password"
+              value={chaveWhatsApp}
+              onChange={e => setChaveWhatsApp(e.target.value)}
+              placeholder="EAAx..."
+              style={{fontSize:".7rem",flex:1}}
+            />
+            <button className="btn btn-s" onClick={guardarConfigs} style={{width:"auto"}}>💾</button>
+          </div>
+
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:10}}>
+            ✅ Oficial, seguro, 1000 mensagens/mês grátis. Melhor para escala.
+          </div>
+
+          {proximas.length > 0 && (
+            <>
+              <div style={{fontSize:".7rem",fontWeight:700,color:"#b0c4d8",marginBottom:8}}>Enviar amanhã:</div>
+              {proximas.map(c => (
+                <button
+                  key={c.id}
+                  className="btn btn-s btn-sm"
+                  style={{width:"100%",marginBottom:6,textAlign:"left",fontSize:".65rem",justifyContent:"flex-start"}}
+                  onClick={() => enviarWhatsAppAPI(c.pacientes)}
+                  disabled={load}
+                >
+                  📤 {c.pacientes?.nome} — Enviar WhatsApp
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* OPÇÃO 3: Baileys */}
+      {metodo === "baileys" && (
+        <div style={{background:"#050810",border:"1px solid #0d7a5c",borderRadius:8,padding:12,marginBottom:14}}>
+          <div style={{fontSize:".75rem",fontWeight:700,color:"#00c6b8",marginBottom:10}}>🤖 Baileys Bot (Código Aberto)</div>
+          
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginBottom:10}}>
+            Bot automático grátis. Responde automaticamente às mensagens dos pacientes.
+          </div>
+
+          <button className="btn btn-p" style={{width:"100%"}} onClick={copiarInstrucoesBaileys}>
+            📋 Copiar Instruções de Configuração
+          </button>
+
+          <div style={{fontSize:".65rem",color:"#3d5a7a",marginTop:10}}>
+            ✅ 100% grátis, open-source, sem limites de mensagens.
+          </div>
+        </div>
+      )}
+
+      {msg && <div style={{marginTop:10,fontSize:".7rem",color:msg.includes("✅")?"#00c6b8":"#d9534f"}}>{msg}</div>}
+    </div>
+  );
+}
+
 function Clinica({ user, onUpdate }) {
   const [org, setOrg] = useState(null);
   const [equipa, setEquipa] = useState([]);
@@ -5109,6 +5887,15 @@ function Clinica({ user, onUpdate }) {
   if (org) {
     return (
       <div className="fade">
+        {/* DASHBOARD */}
+        <DashboardClinica user={user} org={org} />
+        
+        {/* SISTEMA DE LEMBRETES */}
+        <SistemaLembretes user={user} />
+        
+        {/* SISTEMA WHATSAPP */}
+        <SistemaWhatsApp user={user} />
+        
         {msg && <div className="al al-s">{msg}</div>}
         <div className="card">
           <div className="card-t">🏥 {org.nome}</div>
