@@ -5876,6 +5876,35 @@ function PainelSuperAdmin({ user }) {
   const [modoEdicaoAdmin, setModoEdicaoAdmin] = useState(false);
   const [users, setUsers] = useState([]);
   const [modulos, setModulos] = useState([]);
+  const [modulesTerapeuticos, setModulesTerapeuticos] = useState([
+    { id: 'ansiedade_depressao', nome: '🧠 Ansiedade & Depressão', status: 'ATIVO', visivel: true, exclusivo: 'público', modelo: 'trial_14d' },
+    { id: 'reiki', nome: '✨ Reiki', status: 'ESCONDIDO', visivel: false, exclusivo: 'público', modelo: 'aguarda' },
+    { id: 'hikari_fafe', nome: '🌿 Métodos Hikari Fafe', status: 'ESCONDIDO', visivel: false, exclusivo: 'apenas_hikari', modelo: 'aguarda' },
+  ]);
+  const [novoModulo, setNovoModulo] = useState({ nome: '', emoji: '', visivel: 'escondido', exclusivo: 'publico', modelo: 'aguarda' });
+  const [msgAdmin, setMsgAdmin] = useState('');
+
+  const criarModuloTerapeutico = async () => {
+    if (!novoModulo.nome.trim()) {
+      setMsgAdmin('❌ Nome do módulo obrigatório');
+      setTimeout(() => setMsgAdmin(''), 3000);
+      return;
+    }
+    const modId = novoModulo.nome.toLowerCase().replace(/\s+/g, '_');
+    const novoMod = {
+      id: modId,
+      nome: (novoModulo.emoji || '📦') + ' ' + novoModulo.nome,
+      status: novoModulo.visivel === 'visivel' ? 'ATIVO' : 'ESCONDIDO',
+      visivel: novoModulo.visivel === 'visivel',
+      exclusivo: novoModulo.exclusivo,
+      modelo: novoModulo.modelo,
+      criado_em: new Date().toISOString()
+    };
+    setModulesTerapeuticos([...modulesTerapeuticos, novoMod]);
+    setNovoModulo({ nome: '', emoji: '', visivel: 'escondido', exclusivo: 'publico', modelo: 'aguarda' });
+    setMsgAdmin('✅ Módulo criado com sucesso!');
+    setTimeout(() => setMsgAdmin(''), 3000);
+  };
 
   useEffect(() => {
     Promise.all([
@@ -6015,16 +6044,12 @@ function PainelSuperAdmin({ user }) {
                 {!modoEdicaoAdmin ? (
                   // MODO VER
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-                    {[
-                      { id: 'ansiedade_depressao', nome: '🧠 Ansiedade & Depressão', status: 'ATIVO', visivel: true, exclusivo: 'público', modelo: 'trial_14d' },
-                      { id: 'reiki', nome: '✨ Reiki', status: 'ESCONDIDO', visivel: false, exclusivo: 'público', modelo: 'aguarda' },
-                      { id: 'hikari_fafe', nome: '🌿 Métodos Hikari Fafe', status: 'ESCONDIDO', visivel: false, exclusivo: 'apenas_hikari', modelo: 'aguarda' },
-                    ].map(m => (
+                    {modulesTerapeuticos.map(m => (
                       <div key={m.id} style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 12 }}>
                         <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#dde4f0', marginBottom: 8 }}>{m.nome}</div>
                         <div style={{ fontSize: '0.7rem', color: '#8ba3c0', marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
                           <div>🔍 {m.visivel ? '✅ Visível' : '👁️ Escondido'}</div>
-                          <div>🔐 {m.exclusivo === 'público' ? 'Público' : m.exclusivo === 'apenas_hikari' ? 'Apenas Hikari' : 'Selecionados'}</div>
+                          <div>🔐 {m.exclusivo === 'publico' ? 'Público' : m.exclusivo === 'apenas_hikari' ? 'Apenas Hikari' : 'Selecionados'}</div>
                           <div>💰 {m.modelo === 'trial_14d' ? 'Trial 14d' : m.modelo === 'aguarda' ? 'Aguarda decisão' : 'Subscrição'}</div>
                           <div style={{ borderTop: '1px solid #1a3a5c', marginTop: 6, paddingTop: 6, color: m.status === 'ATIVO' ? '#00c6b8' : '#3d5a7a' }}>
                             {m.status}
@@ -6036,41 +6061,42 @@ function PainelSuperAdmin({ user }) {
                 ) : (
                   // MODO EDITAR
                   <div>
+                    {msgAdmin && <div className="al al-ok" style={{ marginBottom: 12, fontSize: '0.75rem' }}>{msgAdmin}</div>}
                     <div style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 12, marginBottom: 12 }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d4a574', marginBottom: 12 }}>🆕 Criar Novo Módulo Terapêutico</div>
                       <div style={{ marginBottom: 10 }}>
-                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Nome do Módulo</label>
-                        <input className="inp" placeholder="Ex: Reiki, Tarot, Meditação..." />
+                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Nome do Módulo *</label>
+                        <input className="inp" placeholder="Ex: Reiki, Tarot, Meditação..." value={novoModulo.nome} onChange={e => setNovoModulo({...novoModulo, nome: e.target.value})} />
                       </div>
                       <div style={{ marginBottom: 10 }}>
                         <label className="lbl" style={{ fontSize: '0.7rem' }}>Ícone/Emoji</label>
-                        <input className="inp" placeholder="Ex: ✨, 🌙, 🧘" style={{ maxWidth: '120px' }} />
+                        <input className="inp" placeholder="Ex: ✨, 🌙, 🧘" value={novoModulo.emoji} onChange={e => setNovoModulo({...novoModulo, emoji: e.target.value})} style={{ maxWidth: '120px' }} />
                       </div>
                       <div style={{ marginBottom: 10 }}>
                         <label className="lbl" style={{ fontSize: '0.7rem' }}>Visibilidade</label>
-                        <select className="inp">
-                          <option>👁️ Escondido (desenvolvimento)</option>
-                          <option>✅ Visível (produção)</option>
+                        <select className="inp" value={novoModulo.visivel} onChange={e => setNovoModulo({...novoModulo, visivel: e.target.value})}>
+                          <option value="escondido">👁️ Escondido (desenvolvimento)</option>
+                          <option value="visivel">✅ Visível (produção)</option>
                         </select>
                       </div>
                       <div style={{ marginBottom: 10 }}>
                         <label className="lbl" style={{ fontSize: '0.7rem' }}>Exclusividade</label>
-                        <select className="inp">
-                          <option>🌍 Público (todos os subscritores)</option>
-                          <option>👤 Apenas um utilizador</option>
-                          <option>📊 Apenas certos planos (Elite, Pro)</option>
+                        <select className="inp" value={novoModulo.exclusivo} onChange={e => setNovoModulo({...novoModulo, exclusivo: e.target.value})}>
+                          <option value="publico">🌍 Público (todos os subscritores)</option>
+                          <option value="apenas_um">👤 Apenas um utilizador</option>
+                          <option value="planos">📊 Apenas certos planos (Elite, Pro)</option>
                         </select>
                       </div>
                       <div style={{ marginBottom: 10 }}>
                         <label className="lbl" style={{ fontSize: '0.7rem' }}>Modelo de Monetização</label>
-                        <select className="inp">
-                          <option>⏳ Trial 14 dias → Subscrição</option>
-                          <option>💳 Subscrição direta</option>
-                          <option>📦 Incluído no plano</option>
-                          <option>⏳ Aguarda decisão (escondido por enquanto)</option>
+                        <select className="inp" value={novoModulo.modelo} onChange={e => setNovoModulo({...novoModulo, modelo: e.target.value})}>
+                          <option value="trial_14d">⏳ Trial 14 dias → Subscrição</option>
+                          <option value="subscricao">💳 Subscrição direta</option>
+                          <option value="incluido">📦 Incluído no plano</option>
+                          <option value="aguarda">⏳ Aguarda decisão (escondido por enquanto)</option>
                         </select>
                       </div>
-                      <button className="btn btn-p" style={{ width: '100%', fontSize: '0.75rem' }}>➕ Criar Módulo</button>
+                      <button className="btn btn-p" onClick={criarModuloTerapeutico} style={{ width: '100%', fontSize: '0.75rem' }}>➕ Criar Módulo</button>
                     </div>
 
                     <div style={{ fontSize: '0.65rem', color: '#3d5a7a', padding: 10, background: 'rgba(0, 198, 184, 0.05)', borderRadius: 6, borderLeft: '2px solid #00c6b8' }}>
