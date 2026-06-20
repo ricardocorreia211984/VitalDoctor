@@ -3053,18 +3053,31 @@ function AdminPanel({ user }) {
                             <option value="trial">Trial</option><option value="base">Base €10</option><option value="pro">Pro €18</option><option value="elite">Elite €23</option>
                           </select>
                         </div>
-                        {[["avancado","🧠 Módulo Especializado"],["audios","🎧 Áudios"],["minisite","🌐 Mini Site"]].map(([mod,label])=>(
+                        {[["avancado","🧠 Módulo Especializado"],["audios","🎧 Áudios"],["minisite","🌐 Mini Site (Trial 14d)"]].map(([mod,label])=>(
                           <div key={mod}>
                             <div className="admin-row">
                               <span style={{fontSize:".68rem",color:"#3d5a7a"}}>{label}</span>
                               <button className={`tw ${(u.modulos_ativos||[]).includes(mod)?"on":"off"}`} onClick={()=>toggleMod(u.id,mod)} />
                             </div>
-                            {mod==="avancado"&&(u.modulos_ativos||[]).includes(mod)&&(
+                            {(mod==="avancado"||mod==="minisite")&&(u.modulos_ativos||[]).includes(mod)&&(
                               <div className="admin-row" style={{paddingLeft:10}}>
-                                <span style={{fontSize:".6rem",color:"#2d4a66"}}>Válido até (vazio=vitalício)</span>
-                                <input type="date" style={{background:"#040810",border:"1px solid #0d1828",borderRadius:4,padding:"2px 6px",fontSize:".6rem",color:"#b0c4d8"}}
-                                  value={u.preferencias?.modulos_validade?.avancado||""}
-                                  onChange={e=>setValidade(u.id,"avancado",e.target.value||null)} />
+                                {mod==="avancado"&&(
+                                  <>
+                                    <span style={{fontSize:".6rem",color:"#2d4a66"}}>Válido até (vazio=vitalício)</span>
+                                    <input type="date" style={{background:"#040810",border:"1px solid #0d1828",borderRadius:4,padding:"2px 6px",fontSize:".6rem",color:"#b0c4d8"}}
+                                      value={u.preferencias?.modulos_validade?.avancado||""}
+                                      onChange={e=>setValidade(u.id,"avancado",e.target.value||null)} />
+                                  </>
+                                )}
+                                {mod==="minisite"&&(
+                                  <>
+                                    <span style={{fontSize:".6rem",color:"#2d4a66"}}>Trial até (auto 14 dias)</span>
+                                    <input type="date" style={{background:"#040810",border:"1px solid #0d1828",borderRadius:4,padding:"2px 6px",fontSize:".6rem",color:"#b0c4d8"}}
+                                      value={u.preferencias?.modulos_trial?.[mod]||new Date(Date.now()+14*24*60*60*1000).toISOString().split("T")[0]}
+                                      onChange={e=>setValidade(u.id,mod,e.target.value||null)} />
+                                    <span style={{fontSize:".55rem",color:"#1a4a5c"}}>ℹ️ Após trial: subscrição ou desativa</span>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
@@ -5882,6 +5895,7 @@ function PainelSuperAdmin({ user }) {
           { id: 'overview', icon: '📊', label: 'Visão Geral', desc: 'Dashboard' },
           { id: 'usuarios', icon: '👥', label: 'Utilizadores', desc: 'Gestão' },
           { id: 'modulos', icon: '📦', label: 'Módulos', desc: 'Customizados' },
+          { id: 'terapeuticos', icon: '📚', label: 'Módulos Terapêuticos', desc: 'Escondidos' },
           { id: 'conteudo_metodo', icon: '⚙️', label: 'Conteúdo Método', desc: 'Especializado' },
           { id: 'pontos_mapeamento', icon: '🗺️', label: 'Pontos Mapeamento', desc: 'Visual' },
         ].map(item => (
@@ -5900,10 +5914,11 @@ function PainelSuperAdmin({ user }) {
             {abaSuperAdmin === 'overview' && '📊 Visão Geral'}
             {abaSuperAdmin === 'usuarios' && '👥 Utilizadores'}
             {abaSuperAdmin === 'modulos' && '📦 Módulos'}
+            {abaSuperAdmin === 'terapeuticos' && '📚 Módulos Terapêuticos'}
             {abaSuperAdmin === 'conteudo_metodo' && '⚙️ Conteúdo do Método'}
             {abaSuperAdmin === 'pontos_mapeamento' && '🗺️ Pontos do Mapeamento'}
           </h1>
-          {['usuarios', 'modulos', 'conteudo_metodo', 'pontos_mapeamento'].includes(abaSuperAdmin) && <button onClick={() => setModoEdicaoAdmin(!modoEdicaoAdmin)} style={{ padding: '8px 14px', background: modoEdicaoAdmin ? '#d4a574' : '#00c6b8', color: '#050810', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}>{modoEdicaoAdmin ? '✏️ Editar' : '👁️ Ver'}</button>}
+          {['usuarios', 'modulos', 'terapeuticos', 'conteudo_metodo', 'pontos_mapeamento'].includes(abaSuperAdmin) && <button onClick={() => setModoEdicaoAdmin(!modoEdicaoAdmin)} style={{ padding: '8px 14px', background: modoEdicaoAdmin ? '#d4a574' : '#00c6b8', color: '#050810', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}>{modoEdicaoAdmin ? '✏️ Editar' : '👁️ Ver'}</button>}
         </div>
         <div style={{ padding: '20px 24px' }}>
           {abaSuperAdmin === 'overview' && (
@@ -5992,13 +6007,84 @@ function PainelSuperAdmin({ user }) {
               </div>
             </div>
           )}
+          {abaSuperAdmin === 'terapeuticos' && (
+            <div className="fade">
+              <div style={{ background: 'linear-gradient(135deg, #0a1e2e, #061428)', border: '1px solid #d4a574', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#d4a574', marginBottom: 16 }}>📚 Módulos Terapêuticos (Escondidos & Seguros)</div>
+
+                {!modoEdicaoAdmin ? (
+                  // MODO VER
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+                    {[
+                      { id: 'ansiedade_depressao', nome: '🧠 Ansiedade & Depressão', status: 'ATIVO', visivel: true, exclusivo: 'público', modelo: 'trial_14d' },
+                      { id: 'reiki', nome: '✨ Reiki', status: 'ESCONDIDO', visivel: false, exclusivo: 'público', modelo: 'aguarda' },
+                      { id: 'hikari_fafe', nome: '🌿 Métodos Hikari Fafe', status: 'ESCONDIDO', visivel: false, exclusivo: 'apenas_hikari', modelo: 'aguarda' },
+                    ].map(m => (
+                      <div key={m.id} style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 12 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#dde4f0', marginBottom: 8 }}>{m.nome}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#8ba3c0', marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div>🔍 {m.visivel ? '✅ Visível' : '👁️ Escondido'}</div>
+                          <div>🔐 {m.exclusivo === 'público' ? 'Público' : m.exclusivo === 'apenas_hikari' ? 'Apenas Hikari' : 'Selecionados'}</div>
+                          <div>💰 {m.modelo === 'trial_14d' ? 'Trial 14d' : m.modelo === 'aguarda' ? 'Aguarda decisão' : 'Subscrição'}</div>
+                          <div style={{ borderTop: '1px solid #1a3a5c', marginTop: 6, paddingTop: 6, color: m.status === 'ATIVO' ? '#00c6b8' : '#3d5a7a' }}>
+                            {m.status}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // MODO EDITAR
+                  <div>
+                    <div style={{ background: '#050810', border: '1px solid #1a3a5c', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d4a574', marginBottom: 12 }}>🆕 Criar Novo Módulo Terapêutico</div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Nome do Módulo</label>
+                        <input className="inp" placeholder="Ex: Reiki, Tarot, Meditação..." />
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Ícone/Emoji</label>
+                        <input className="inp" placeholder="Ex: ✨, 🌙, 🧘" style={{ maxWidth: '120px' }} />
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Visibilidade</label>
+                        <select className="inp">
+                          <option>👁️ Escondido (desenvolvimento)</option>
+                          <option>✅ Visível (produção)</option>
+                        </select>
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Exclusividade</label>
+                        <select className="inp">
+                          <option>🌍 Público (todos os subscritores)</option>
+                          <option>👤 Apenas um utilizador</option>
+                          <option>📊 Apenas certos planos (Elite, Pro)</option>
+                        </select>
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label className="lbl" style={{ fontSize: '0.7rem' }}>Modelo de Monetização</label>
+                        <select className="inp">
+                          <option>⏳ Trial 14 dias → Subscrição</option>
+                          <option>💳 Subscrição direta</option>
+                          <option>📦 Incluído no plano</option>
+                          <option>⏳ Aguarda decisão (escondido por enquanto)</option>
+                        </select>
+                      </div>
+                      <button className="btn btn-p" style={{ width: '100%', fontSize: '0.75rem' }}>➕ Criar Módulo</button>
+                    </div>
+
+                    <div style={{ fontSize: '0.65rem', color: '#3d5a7a', padding: 10, background: 'rgba(0, 198, 184, 0.05)', borderRadius: 6, borderLeft: '2px solid #00c6b8' }}>
+                      💡 <strong>Workflow:</strong> Cria escondido → Desenvolve/Testa → Decide modelo (trial/subscrição/incluído) → Mostra em produção
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-}
-
-function PainelPrincipal({ user, org }) {
   const [modo, setModo] = useState('dashboard');
   const [modoEdicao, setModoEdicao] = useState(false);
 
