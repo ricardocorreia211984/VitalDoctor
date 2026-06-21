@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PONTOS_POR_SISTEMA, PONTOS, getPonto, CENTROS_VITAIS, PONTOS_ENTRADA } from "https://raw.githubusercontent.com/ricardocorreia211984/VitalDoctor/main/mapaCorporal.js";
-import { ESCUDOS, QUESTIONARIO_ESCUDOS, ESCALA_QUESTIONARIO, PERGUNTAS_ABERTURA, CAMINHOS, PROTOCOLO } from "https://raw.githubusercontent.com/ricardocorreia211984/VitalDoctor/main/baseConhecimento.js";
-import { gerarProtocoloCura, AFIRMACOES_ESCUDO } from "https://raw.githubusercontent.com/ricardocorreia211984/VitalDoctor/main/protocoloCura.js";
-import { pontuarEscudos } from "https://raw.githubusercontent.com/ricardocorreia211984/VitalDoctor/main/gerarRelatorio.js";
-import { AVISO_SAUDE, jaAceitou, registarAceite } from "https://raw.githubusercontent.com/ricardocorreia211984/VitalDoctor/main/responsabilidade.js";
+import { createClient } from "@supabase/supabase-js";
 
 // ─── SUPABASE ───
 const SUPA_URL = "https://lrmylsywevawexzcgqzc.supabase.co";
