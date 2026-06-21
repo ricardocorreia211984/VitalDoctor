@@ -4492,15 +4492,17 @@ function NovaConsulta({ user, onIniciar }) {
   useEffect(() => {
     // Carregar módulos customizados publicados do subscritor (EXCLUIR módulos com bloqueio)
     sb.from("custom_modules").select("*").eq("terapeuta_id", user.id).eq("publicado", true).order("criado_em", { ascending: false })
-      .then(({data}) => {
-        // Filtrar módulos: só mostrar se:
-        // 1. Não tem bloqueio (bloqueado_com = null)
-        // 2. Ou user tem permissão (has_exclusive_therapy_access = true)
+      .then(({data, error}) => {
+        if (error) {
+          console.error('Erro ao carregar módulos:', error);
+          return;
+        }
         const filtrados = (data || []).filter(m => 
           !m.bloqueado_com || user.has_exclusive_therapy_access === true
         );
         setModulos(filtrados);
-      });
+      })
+      .catch(err => console.error('Erro fatal ao carregar módulos:', err));
   }, [user?.id, user?.has_exclusive_therapy_access]);
 
   return (
@@ -4587,7 +4589,14 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
       sb.from("pacientes").select("id,nome,telefone,medicacao,email")
         .eq("terapeuta_id", user.id)  // RLS + filtro código = dupla protecção
         .order("nome")
-        .then(({ data }) => setPacs(data || []));
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Erro ao carregar pacientes:', error);
+            return;
+          }
+          setPacs(data || []);
+        })
+        .catch(err => console.error('Erro fatal ao carregar pacientes:', err));
     }
   }, [user]);
 
