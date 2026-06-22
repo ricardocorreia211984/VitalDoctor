@@ -693,11 +693,17 @@ function Dashboard({ user, pacs, agenda, go }) {
             </div>
           ))}
         </div>
-        <button className="btn btn-p" style={{fontSize:12,padding:"11px 0",marginBottom:6}} onClick={() => go && go("metodo","consulta")}>
-          🧠 Iniciar Atendimento Especializado
+        <button className="btn btn-p" style={{fontSize:12,padding:"10px 0",marginBottom:5}} onClick={() => go && go("metodo","consulta")}>
+          🩺 Nova Consulta
         </button>
-        <button className="btn btn-s" style={{fontSize:11,padding:"9px 0"}} onClick={() => go && go("pacientes",null)}>
-          ➕ Novo Paciente / Nova Consulta
+        <button className="btn btn-s" style={{fontSize:11,padding:"8px 0",marginBottom:5}} onClick={() => go && go("metodo","preconsulta")}>
+          📤 Enviar Pré-Consulta
+        </button>
+        <button className="btn btn-s" style={{fontSize:11,padding:"8px 0",marginBottom:5}} onClick={() => go && go("metodo","teleconsulta")}>
+          📹 Iniciar Teleconsulta
+        </button>
+        <button className="btn btn-s" style={{fontSize:11,padding:"8px 0"}} onClick={() => go && go("metodo","packs")}>
+          💳 Packs & Pagamentos
         </button>
       </div>
     </div>
@@ -3551,6 +3557,8 @@ function PrivacidadeModal({ perfil, onFechar }) {
   );
 }
 
+function ModuloExclusivoBioHertz(props) { return <DashboardComTemplates {...props} />; }
+
 export default function VitalDoctor() {
   const [user, setUser] = useState(null);
   const [perfil, setPerfil] = useState(null);
@@ -3565,7 +3573,14 @@ export default function VitalDoctor() {
     window.addEventListener("offline", off);
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
-  const navegar = (m, aba) => { setMetodoTab(aba || null); setMod(m); };
+  const navegar = (m, aba) => {
+    // Shortcuts sidebar → metodo sub-tabs
+    if (m === "metodo_preconsulta") { setMetodoTab("preconsulta"); setMod("metodo"); window.scrollTo(0,0); return; }
+    if (m === "metodo_packs")       { setMetodoTab("packs");       setMod("metodo"); window.scrollTo(0,0); return; }
+    setMetodoTab(aba || null);
+    setMod(m);
+    window.scrollTo(0, 0);
+  };
   // Botão de retroceder do aparelho: recua dentro da app, nunca sai (só "Sair" sai)
   const navHist = useRef(["dashboard"]);
   const navSkip = useRef(false);
@@ -3678,8 +3693,15 @@ export default function VitalDoctor() {
       { id:"agenda",icon:"📅",l:"Agenda" },
       { id:"mensagens",icon:"💬",l:"Mensagens" },
     ]},
-    { t:"Consultas", items:[{ id:"metodo",icon:"🩺",l:"Nova Consulta" }] },
-    ...(temMod("avancado") ? [] : []),
+    { t:"Consultas", items:[
+      { id:"metodo",icon:"🩺",l:"Nova Consulta" },
+      { id:"metodo_preconsulta",icon:"📤",l:"Pré-Consulta" },
+      { id:"metodo_packs",icon:"💳",l:"Packs & Pagamentos" },
+    ]},
+    { t:"Recursos", items:[
+      { id:"minisite",icon:"🌐",l:"Mini Site" },
+      { id:"suporte",icon:"🆘",l:"Ajuda" },
+    ]},
     ...(temMod("minisite") ? [{ t:"Pratica", items:[{ id:"minisite",icon:"🌐",l:"Mini Site" }] }] : []),
     ...(isSuperAdmin ? [{ t:"Gestão", items:[{ id:"admin",icon:"⚙️",l:"Painel Super Admin" }] }] : []),
     { t:"Organização", items:[{ id:"clinica",icon:"🏥",l:"A Minha Clínica" }, { id:"modulos",icon:"⚙️",l:"Meus Módulos Terapêuticos" }] },
@@ -3772,16 +3794,7 @@ export default function VitalDoctor() {
             {mod === "clinica"   && <Clinica user={perfil} onUpdate={setPerfil} />}
             {mod === "modulos"   && <ConstrutorModulos user={perfil} />}
             {mod === "agenda"    && <Agenda user={perfil} pacs={pacs} agenda={agenda} setAgenda={setAgenda} />}
-            {mod === "metodo" && (
-              isSuperAdmin || temMod("avancado")
-                ? <ModuloMetodo user={perfil} adminMode={isSuperAdmin} initAba={metodoTab} voltar={() => navegar("dashboard")} />
-                : <div className="fade" style={{padding:24,textAlign:"center"}}>
-                    <div style={{fontSize:40,marginBottom:12}}>🔒</div>
-                    <div style={{fontWeight:700,color:"#dde4f0",marginBottom:8,fontSize:"1rem"}}>Nova Consulta — Módulo Especializado</div>
-                    <div style={{color:"#5a7a9a",fontSize:13,marginBottom:16,lineHeight:1.6}}>Este módulo de atendimento especializado está disponível mediante activação.<br/>Contacta o administrador para obter acesso.</div>
-                    <button className="btn btn-s" style={{fontSize:12}} onClick={() => navegar("suporte")}>📩 Contactar Suporte</button>
-                  </div>
-            )}
+            {mod === "metodo" && <ModuloMetodo user={perfil} adminMode={isSuperAdmin} temAcesso={isSuperAdmin || temMod("avancado")} initAba={metodoTab} voltar={() => navegar("dashboard")} />}
             {mod === "minisite"  && <MiniSite user={perfil} />}
             {mod === "admin"     && isSuperAdmin && <AdminPanel user={perfil} />}
             {mod === "suporte"   && <Suporte user={perfil} isSuperAdmin={isSuperAdmin} />}
@@ -4710,6 +4723,531 @@ function FormAtendimentoEstruturado({ paciente, user, caminhoInit, tituloConsult
 // ══════════════════════════════════════════════════════════════════
 // NOVA CONSULTA — Menu com 3 Tipos de Atendimento
 // ══════════════════════════════════════════════════════════════════
+
+// ─── MÉTODO UNIVERSAL EDITÁVEL ───────────────────────────────────────────────
+// Template de consulta genérico, adaptável por cada subscritor
+const TEMPLATE_UNIVERSAL_PADRAO = {
+  id: "universal",
+  nome: "Método Universal",
+  descricao: "Fluxo de consulta genérico adaptável a qualquer terapia. Edita os passos, perguntas e protocolos conforme a tua prática.",
+  cor: "#00c6b8",
+  icone: "🌀",
+  passos: [
+    { id: "p1", titulo: "Acolhimento", tipo: "texto_livre", pergunta: "Como se sente hoje? O que o(a) trouxe à consulta?", obrigatorio: true },
+    { id: "p2", titulo: "Queixa Principal", tipo: "texto_livre", pergunta: "Qual é o principal sintoma ou dificuldade que quer trabalhar hoje?", obrigatorio: true },
+    { id: "p3", titulo: "Histórico", tipo: "multipla_escolha", pergunta: "Esta situação é:", opcoes: ["Nova (primeira vez)", "Recorrente (já aconteceu antes)", "Crónica (presente há muito tempo)", "Agravamento recente"], obrigatorio: false },
+    { id: "p4", titulo: "Intensidade", tipo: "escala", pergunta: "De 0 a 10, qual a intensidade do que sente agora?", min: 0, max: 10, obrigatorio: true },
+    { id: "p5", titulo: "Impacto na Vida", tipo: "multipla_escolha", pergunta: "Onde sente mais impacto?", opcoes: ["Trabalho / Carreira", "Relações afetivas", "Saúde física", "Sono / descanso", "Bem-estar emocional", "Família", "Finanças"], multiplo: true, obrigatorio: false },
+    { id: "p6", titulo: "Recursos", tipo: "texto_livre", pergunta: "O que já tentou fazer para melhorar? O que ajudou, mesmo que pouco?", obrigatorio: false },
+    { id: "p7", titulo: "Objetivo da Sessão", tipo: "texto_livre", pergunta: "O que gostaria de sentir/alcançar no final desta sessão?", obrigatorio: true },
+    { id: "p8", titulo: "Notas do Terapeuta", tipo: "notas_terapeuta", pergunta: "Observações clínicas (visível apenas para ti):", obrigatorio: false },
+    { id: "p9", titulo: "Próximos Passos", tipo: "texto_livre", pergunta: "Protocolo e recomendações para o paciente:", obrigatorio: false },
+  ]
+};
+
+function MetodoUniversalEditor({ user, onClose }) {
+  const [template, setTemplate] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [editandoPasso, setEditandoPasso] = useState(null);
+
+  useEffect(() => {
+    sb.from("metodo_universal").select("*").eq("terapeuta_id", user?.id).single()
+      .then(({ data }) => {
+        setTemplate(data?.config || TEMPLATE_UNIVERSAL_PADRAO);
+        setLoading(false);
+      })
+      .catch(() => { setTemplate(TEMPLATE_UNIVERSAL_PADRAO); setLoading(false); });
+  }, [user?.id]);
+
+  const salvar = async () => {
+    setSaving(true);
+    const { error } = await sb.from("metodo_universal").upsert({
+      terapeuta_id: user?.id,
+      config: template,
+      atualizado_em: new Date().toISOString()
+    }, { onConflict: "terapeuta_id" });
+    setSaving(false);
+    setMsg(error ? "❌ Erro ao guardar" : "✅ Método guardado!");
+    setTimeout(() => setMsg(""), 2500);
+  };
+
+  const adicionarPasso = () => {
+    const novoPasso = { id: "p" + Date.now(), titulo: "Novo Passo", tipo: "texto_livre", pergunta: "Escreve aqui a tua pergunta...", obrigatorio: false };
+    setTemplate(t => ({ ...t, passos: [...(t.passos||[]), novoPasso] }));
+  };
+
+  const removerPasso = (id) => setTemplate(t => ({ ...t, passos: t.passos.filter(p => p.id !== id) }));
+
+  const moverPasso = (id, dir) => {
+    setTemplate(t => {
+      const ps = [...t.passos];
+      const i = ps.findIndex(p => p.id === id);
+      if (dir === "up" && i > 0) [ps[i-1], ps[i]] = [ps[i], ps[i-1]];
+      if (dir === "down" && i < ps.length-1) [ps[i], ps[i+1]] = [ps[i+1], ps[i]];
+      return { ...t, passos: ps };
+    });
+  };
+
+  const atualizarPasso = (id, campo, valor) => setTemplate(t => ({ ...t, passos: t.passos.map(p => p.id === id ? { ...p, [campo]: valor } : p) }));
+
+  if (loading) return <div style={{padding:20,textAlign:"center",color:"#5a7a9a"}}>A carregar...</div>;
+
+  const TIPOS_PASSO = [
+    { v:"texto_livre", l:"✍️ Texto livre" },
+    { v:"multipla_escolha", l:"☑️ Múltipla escolha" },
+    { v:"escala", l:"🔢 Escala numérica" },
+    { v:"sim_nao", l:"✅ Sim / Não" },
+    { v:"notas_terapeuta", l:"🔒 Notas do terapeuta" },
+  ];
+
+  return (
+    <div className="fade" style={{padding:"0 0 80px 0"}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14}}>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onClose}>← Voltar</button>
+        <div style={{flex:1,fontWeight:700,fontSize:14,color:"#dde4f0"}}>🌀 Editor do Método Universal</div>
+        <button className="btn btn-p btn-sm" style={{width:"auto",fontSize:11}} onClick={salvar} disabled={saving}>{saving?"A guardar...":"💾 Guardar"}</button>
+      </div>
+      {msg && <div className="al al-s" style={{marginBottom:10}}>{msg}</div>}
+
+      <div className="card" style={{marginBottom:12}}>
+        <div className="card-t">Informação Geral</div>
+        <label style={{fontSize:11,color:"#5a7a9a"}}>Nome do método</label>
+        <input className="inp" value={template.nome} onChange={e=>setTemplate(t=>({...t,nome:e.target.value}))} style={{marginBottom:8}} />
+        <label style={{fontSize:11,color:"#5a7a9a"}}>Descrição</label>
+        <textarea className="inp" rows={2} value={template.descricao} onChange={e=>setTemplate(t=>({...t,descricao:e.target.value}))} style={{resize:"vertical"}} />
+      </div>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{fontWeight:700,fontSize:11,color:"#5a7a9a"}}>PASSOS DA CONSULTA ({(template.passos||[]).length})</div>
+        <button className="btn btn-s btn-sm" style={{width:"auto",fontSize:11}} onClick={adicionarPasso}>+ Adicionar Passo</button>
+      </div>
+
+      {(template.passos||[]).map((p, idx) => (
+        <div key={p.id} className="card" style={{marginBottom:8,borderColor: editandoPasso===p.id?"#00c6b8":"#0d1828"}}>
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom: editandoPasso===p.id?10:0}}>
+            <div style={{fontSize:11,color:"#3d5a7a",width:22,textAlign:"center",fontWeight:700}}>{idx+1}</div>
+            <div style={{flex:1,fontWeight:600,fontSize:12,color:"#b0c4d8"}}>{p.titulo}</div>
+            <div style={{fontSize:9,color:"#3d5a7a",padding:"2px 7px",borderRadius:8,background:"#0d1828"}}>{TIPOS_PASSO.find(t=>t.v===p.tipo)?.l||p.tipo}</div>
+            <button onClick={()=>moverPasso(p.id,"up")} style={{background:"none",border:"none",color:"#3d5a7a",cursor:"pointer",fontSize:14,padding:"0 2px"}} title="Subir">↑</button>
+            <button onClick={()=>moverPasso(p.id,"down")} style={{background:"none",border:"none",color:"#3d5a7a",cursor:"pointer",fontSize:14,padding:"0 2px"}} title="Descer">↓</button>
+            <button onClick={()=>setEditandoPasso(editandoPasso===p.id?null:p.id)} style={{background:"none",border:"none",color:"#00c6b8",cursor:"pointer",fontSize:12,padding:"0 4px"}}>✏️</button>
+            <button onClick={()=>removerPasso(p.id)} style={{background:"none",border:"none",color:"#5a2a2a",cursor:"pointer",fontSize:14,padding:"0 2px"}}>✕</button>
+          </div>
+          {editandoPasso===p.id && (
+            <div style={{borderTop:"1px solid #0d1828",paddingTop:10}}>
+              <label style={{fontSize:10,color:"#5a7a9a"}}>Título do passo</label>
+              <input className="inp" value={p.titulo} onChange={e=>atualizarPasso(p.id,"titulo",e.target.value)} style={{marginBottom:8}} />
+              <label style={{fontSize:10,color:"#5a7a9a"}}>Pergunta / Instrução</label>
+              <textarea className="inp" rows={2} value={p.pergunta} onChange={e=>atualizarPasso(p.id,"pergunta",e.target.value)} style={{marginBottom:8,resize:"vertical"}} />
+              <label style={{fontSize:10,color:"#5a7a9a"}}>Tipo de resposta</label>
+              <select className="inp" value={p.tipo} onChange={e=>atualizarPasso(p.id,"tipo",e.target.value)} style={{marginBottom:8}}>
+                {TIPOS_PASSO.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}
+              </select>
+              {(p.tipo==="multipla_escolha") && (
+                <div>
+                  <label style={{fontSize:10,color:"#5a7a9a"}}>Opções (uma por linha)</label>
+                  <textarea className="inp" rows={3} value={(p.opcoes||[]).join("\n")} onChange={e=>atualizarPasso(p.id,"opcoes",e.target.value.split("\n"))} style={{resize:"vertical",marginBottom:8}} />
+                  <label style={{display:"flex",gap:6,alignItems:"center",fontSize:10,color:"#5a7a9a",marginBottom:8}}>
+                    <input type="checkbox" checked={!!p.multiplo} onChange={e=>atualizarPasso(p.id,"multiplo",e.target.checked)} />
+                    Permitir várias respostas
+                  </label>
+                </div>
+              )}
+              <label style={{display:"flex",gap:6,alignItems:"center",fontSize:10,color:"#5a7a9a"}}>
+                <input type="checkbox" checked={!!p.obrigatorio} onChange={e=>atualizarPasso(p.id,"obrigatorio",e.target.checked)} />
+                Passo obrigatório
+              </label>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="card" style={{marginTop:14,borderColor:"#1a3a5c"}}>
+        <div style={{fontSize:11,color:"#5a7a9a",lineHeight:1.7}}>
+          <strong style={{color:"#b0c4d8"}}>💡 Como funciona:</strong> Este método aparece na lista de consultas de todos os teus pacientes. Podes criar um método universal base e depois criar módulos personalizados em "Métodos Terapêuticos" para casos específicos.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExecutorMetodoUniversal({ paciente, user, onGuardar, onVoltar }) {
+  const [template, setTemplate] = useState(null);
+  const [respostas, setRespostas] = useState({});
+  const [passoAtual, setPassoAtual] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    sb.from("metodo_universal").select("*").eq("terapeuta_id", user?.id).single()
+      .then(({ data }) => { setTemplate(data?.config || TEMPLATE_UNIVERSAL_PADRAO); setLoading(false); })
+      .catch(() => { setTemplate(TEMPLATE_UNIVERSAL_PADRAO); setLoading(false); });
+  }, [user?.id]);
+
+  if (loading) return <div style={{padding:20,textAlign:"center",color:"#5a7a9a"}}>A carregar método...</div>;
+  if (!template) return null;
+
+  const passos = template.passos || [];
+  const passo = passos[passoAtual];
+  const progresso = Math.round(((passoAtual+1)/passos.length)*100);
+
+  const responder = (val) => setRespostas(r => ({ ...r, [passo.id]: val }));
+
+  const finalizar = async () => {
+    setGuardando(true);
+    const linhas = passos.map(p => `**${p.titulo}:** ${Array.isArray(respostas[p.id]) ? respostas[p.id].join(", ") : (respostas[p.id] || "(não respondido)")}`);
+    const relatorio = `# Consulta — ${template.nome}\n**Paciente:** ${paciente?.nome}\n\n${linhas.join("\n")}`;
+    await onGuardar("universal", { respostas, relatorio, template_nome: template.nome });
+    setGuardando(false);
+  };
+
+  return (
+    <div className="fade">
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>← Voltar</button>
+        <div style={{flex:1,fontSize:13,fontWeight:700,color:"#dde4f0"}}>🌀 {template.nome}</div>
+        <div style={{fontSize:10,color:"#5a7a9a"}}>{paciente?.nome}</div>
+      </div>
+      <div style={{background:"#0d1828",borderRadius:6,height:4,marginBottom:14}}>
+        <div style={{background:"#00c6b8",borderRadius:6,height:4,width:progresso+"%",transition:"width .3s"}} />
+      </div>
+      <div style={{fontSize:10,color:"#5a7a9a",textAlign:"right",marginTop:-10,marginBottom:14}}>Passo {passoAtual+1} de {passos.length}</div>
+
+      {passo && (
+        <div className="card" style={{minHeight:180}}>
+          <div style={{fontWeight:700,fontSize:14,color:"#dde4f0",marginBottom:4}}>{passo.titulo}</div>
+          {passo.obrigatorio && <div style={{fontSize:9,color:"#f59e0b",marginBottom:10}}>* Obrigatório</div>}
+          <div style={{fontSize:12,color:"#8ba3c0",marginBottom:14,lineHeight:1.6}}>{passo.pergunta}</div>
+
+          {(passo.tipo==="texto_livre"||passo.tipo==="notas_terapeuta") && (
+            <textarea className="inp" rows={4} placeholder={passo.tipo==="notas_terapeuta"?"(visível apenas para ti)":""} value={respostas[passo.id]||""} onChange={e=>responder(e.target.value)} style={{resize:"vertical"}} />
+          )}
+          {passo.tipo==="escala" && (
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {Array.from({length:(passo.max||10)-(passo.min||0)+1},(_,i)=>(passo.min||0)+i).map(n=>(
+                <button key={n} onClick={()=>responder(n)} style={{width:40,height:40,borderRadius:8,border:`2px solid ${respostas[passo.id]===n?"#00c6b8":"#0d1828"}`,background:respostas[passo.id]===n?"#00c6b8":"#050810",color:respostas[passo.id]===n?"#07090f":"#b0c4d8",fontWeight:700,cursor:"pointer",fontSize:14}}>{n}</button>
+              ))}
+            </div>
+          )}
+          {passo.tipo==="sim_nao" && (
+            <div style={{display:"flex",gap:10}}>
+              {["Sim","Não"].map(op=>(
+                <button key={op} onClick={()=>responder(op)} style={{flex:1,padding:"12px 0",borderRadius:8,border:`2px solid ${respostas[passo.id]===op?"#00c6b8":"#0d1828"}`,background:respostas[passo.id]===op?"#00c6b8":"#050810",color:respostas[passo.id]===op?"#07090f":"#b0c4d8",fontWeight:700,cursor:"pointer",fontSize:14}}>{op}</button>
+              ))}
+            </div>
+          )}
+          {passo.tipo==="multipla_escolha" && (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {(passo.opcoes||[]).map(op=>{
+                const sels = Array.isArray(respostas[passo.id])?respostas[passo.id]:[];
+                const sel = passo.multiplo?sels.includes(op):respostas[passo.id]===op;
+                const toggle = () => {
+                  if (passo.multiplo) responder(sel?sels.filter(s=>s!==op):[...sels,op]);
+                  else responder(op);
+                };
+                return <button key={op} onClick={toggle} style={{textAlign:"left",padding:"10px 14px",borderRadius:8,border:`2px solid ${sel?"#00c6b8":"#0d1828"}`,background:sel?"rgba(0,198,184,.08)":"#050810",color:sel?"#00c6b8":"#b0c4d8",cursor:"pointer",fontSize:12,fontWeight:sel?700:400}}>{sel?"✓ ":""}{op}</button>;
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        {passoAtual>0 && <button className="btn btn-s" style={{flex:1}} onClick={()=>setPassoAtual(i=>i-1)}>← Anterior</button>}
+        {passoAtual<passos.length-1
+          ? <button className="btn btn-p" style={{flex:2}} onClick={()=>setPassoAtual(i=>i+1)}>Próximo →</button>
+          : <button className="btn btn-p" style={{flex:2}} onClick={finalizar} disabled={guardando}>{guardando?"A guardar...":"✅ Finalizar Consulta"}</button>
+        }
+      </div>
+    </div>
+  );
+}
+
+
+// ─── PRÉ-CONSULTA EXTERNA ────────────────────────────────────────────────────
+function PainelPreConsulta({ user }) {
+  const [pacs, setPacs] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [link, setLink] = useState("");
+  const [tipo, setTipo] = useState("pre_consulta");
+  const [enviado, setEnviado] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+
+  useEffect(()=>{
+    sb.from("pacientes").select("id,nome,telefone").eq("terapeuta_id",user?.id).order("nome")
+      .then(({data})=>setPacs(data||[]));
+  },[user?.id]);
+
+  const gerarLink = async () => {
+    if(!sel) return;
+    setCarregando(true);
+    const {data,error} = await sb.from("pre_consulta_tokens")
+      .insert({paciente_id:sel.id, terapeuta_id:user.id, tipo})
+      .select().single();
+    setCarregando(false);
+    if(error||!data){alert("Erro: "+(error?.message||""));return;}
+    const url = `${window.location.origin}?formulario=${data.id}`;
+    setLink(url);
+    setEnviado(false);
+  };
+
+  const enviarWA = () => {
+    if(!sel?.telefone||!link) return;
+    const num = sel.telefone.replace(/[^0-9]/g,"");
+    const tipos = {pre_consulta:"pré-consulta",escudos:"Questionário dos Escudos Emocionais",medos:"Questionário dos Medos"};
+    const msg = `Olá ${sel.nome}! Antes da nossa sessão, peço que preenchas este questionário rápido (${tipos[tipo]||tipo}):
+
+${link}
+
+Obrigado(a)! 🙏`;
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,"_blank");
+    setEnviado(true);
+  };
+
+  const copiar = () => { navigator.clipboard?.writeText(link); setEnviado(true); };
+
+  const TIPOS = [
+    {id:"pre_consulta",l:"📋 Pré-Consulta"},
+    {id:"escudos",l:"🛡️ Escudos Emocionais"},
+    {id:"medos",l:"😨 Questionário dos Medos"},
+  ];
+
+  return (
+    <div className="fade" style={{padding:"0 0 60px 0"}}>
+      <div className="card-t" style={{marginBottom:10}}>📤 Enviar Formulário por Link / WhatsApp</div>
+      <div className="card" style={{marginBottom:10}}>
+        <label style={{fontSize:11,color:"#5a7a9a",marginBottom:6,display:"block"}}>Formulário a enviar</label>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+          {TIPOS.map(t=>(
+            <button key={t.id} onClick={()=>setTipo(t.id)} style={{padding:"7px 12px",borderRadius:8,border:`2px solid ${tipo===t.id?"#00c6b8":"#0d1828"}`,background:tipo===t.id?"rgba(0,198,184,.1)":"#050810",color:tipo===t.id?"#00c6b8":"#5a7a9a",fontSize:11,cursor:"pointer",fontWeight:tipo===t.id?700:400}}>{t.l}</button>
+          ))}
+        </div>
+        <label style={{fontSize:11,color:"#5a7a9a",marginBottom:6,display:"block"}}>Paciente</label>
+        <select className="inp" value={sel?.id||""} onChange={e=>setSel(pacs.find(p=>p.id===e.target.value)||null)} style={{marginBottom:12}}>
+          <option value="">— seleccionar —</option>
+          {pacs.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+        </select>
+        <button className="btn btn-p" onClick={gerarLink} disabled={!sel||carregando} style={{marginBottom:12}}>
+          {carregando?"A gerar...":"🔗 Gerar Link"}
+        </button>
+        {link && (
+          <div style={{background:"#050810",border:"1px solid #0d1828",borderRadius:8,padding:12,marginBottom:10}}>
+            <div style={{fontSize:10,color:"#3d5a7a",marginBottom:6,wordBreak:"break-all"}}>{link}</div>
+            <div style={{display:"flex",gap:6}}>
+              <button className="btn btn-s" style={{flex:1,fontSize:11}} onClick={copiar}>📋 Copiar Link</button>
+              {sel?.telefone && <button className="btn btn-sm" style={{flex:1,background:"#25D36618",border:"1px solid #25D36640",color:"#25D366",fontSize:11}} onClick={enviarWA}>📱 WhatsApp</button>}
+            </div>
+            {enviado && <div style={{fontSize:10,color:"#00c6b8",marginTop:6,textAlign:"center"}}>✅ Link copiado/enviado!</div>}
+          </div>
+        )}
+        <div style={{fontSize:10,color:"#2d4a66",lineHeight:1.6}}>
+          O paciente preenche no telemóvel sem precisar de conta. As respostas entram directamente na sua ficha.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PACKS DE CONSULTAS + PAGAMENTOS ────────────────────────────────────────
+function PainelPacks({ user }) {
+  const [pacs, setPacs] = useState([]);
+  const [packs, setPacks] = useState([]);
+  const [pagamentos, setPagamentos] = useState([]);
+  const [sel, setSel] = useState(null); // pack seleccionado
+  const [aba, setAba] = useState("lista"); // lista | novo | pagar
+  const [form, setForm] = useState({nome:"Pack 3 Sessões",total_sessoes:3,preco_total:"",paciente_id:""});
+  const [pagForm, setPagForm] = useState({valor:"",metodo:"MBWay",notas:"",data_pagamento:new Date().toISOString().split("T")[0]});
+  const [ok, setOk] = useState("");
+
+  const load = () => {
+    sb.from("packs_consultas").select("*,pacientes(nome)").eq("terapeuta_id",user?.id).order("criado_em",{ascending:false}).then(({data})=>setPacks(data||[]));
+    sb.from("pagamentos").select("*").eq("terapeuta_id",user?.id).order("criado_em",{ascending:false}).then(({data})=>setPagamentos(data||[]));
+    sb.from("pacientes").select("id,nome").eq("terapeuta_id",user?.id).order("nome").then(({data})=>setPacs(data||[]));
+  };
+  useEffect(()=>{load();},[user?.id]);
+
+  const criarPack = async () => {
+    if(!form.paciente_id||!form.preco_total) return;
+    const {error} = await sb.from("packs_consultas").insert({...form,terapeuta_id:user.id,preco_total:parseFloat(form.preco_total)});
+    if(error){alert(error.message);return;}
+    setOk("✅ Pack criado!");setTimeout(()=>setOk(""),2000);setAba("lista");load();
+  };
+
+  const registarPagamento = async () => {
+    if(!sel||!pagForm.valor) return;
+    const {error} = await sb.from("pagamentos").insert({...pagForm,pack_id:sel.id,paciente_id:sel.paciente_id,terapeuta_id:user.id,valor:parseFloat(pagForm.valor)});
+    if(error){alert(error.message);return;}
+    // Update pack pago_total
+    const jaPane = pagamentos.filter(p=>p.pack_id===sel.id).reduce((s,p)=>s+parseFloat(p.valor||0),0)+parseFloat(pagForm.valor);
+    await sb.from("packs_consultas").update({pago_total:jaPane,sessoes_realizadas:sel.sessoes_realizadas+(pagForm.notas.includes("sessão")?1:0)}).eq("id",sel.id);
+    setOk("✅ Pagamento registado!");setTimeout(()=>setOk(""),2000);setSel(null);setAba("lista");load();
+  };
+
+  const packsComSaldo = packs.map(pk=>{
+    const pago = pagamentos.filter(p=>p.pack_id===pk.id).reduce((s,p)=>s+parseFloat(p.valor||0),0);
+    const divida = parseFloat(pk.preco_total||0)-pago;
+    return{...pk,pago_real:pago,divida};
+  });
+
+  const totalDivida = packsComSaldo.reduce((s,pk)=>s+(pk.divida>0?pk.divida:0),0);
+
+  return (
+    <div className="fade" style={{padding:"0 0 60px 0"}}>
+      {ok&&<div className="al al-ok" style={{marginBottom:8}}>{ok}</div>}
+      {totalDivida>0&&<div className="al" style={{marginBottom:8,borderColor:"#f87171",background:"rgba(248,113,113,.07)",color:"#f87171"}}>⚠️ Total em dívida: <strong>{totalDivida.toFixed(2)}€</strong></div>}
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        {[["lista","📋 Packs"],["novo","➕ Novo Pack"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setAba(k)} style={{flex:1,padding:"9px 0",borderRadius:8,border:`2px solid ${aba===k?"#00c6b8":"#0d1828"}`,background:aba===k?"rgba(0,198,184,.1)":"#050810",color:aba===k?"#00c6b8":"#5a7a9a",fontSize:12,fontWeight:aba===k?700:400,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+
+      {aba==="novo"&&(
+        <div className="card">
+          <div className="card-t">Novo Pack</div>
+          <label style={{fontSize:10,color:"#5a7a9a"}}>Paciente</label>
+          <select className="inp" value={form.paciente_id} onChange={e=>setForm(f=>({...f,paciente_id:e.target.value}))} style={{marginBottom:8}}>
+            <option value="">— seleccionar —</option>
+            {pacs.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+          <label style={{fontSize:10,color:"#5a7a9a"}}>Nome do pack</label>
+          <input className="inp" value={form.nome} onChange={e=>setForm(f=>({...f,nome:e.target.value}))} style={{marginBottom:8}}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            <div>
+              <label style={{fontSize:10,color:"#5a7a9a"}}>Nº sessões</label>
+              <input className="inp" type="number" min="1" value={form.total_sessoes} onChange={e=>setForm(f=>({...f,total_sessoes:parseInt(e.target.value)||1}))}/>
+            </div>
+            <div>
+              <label style={{fontSize:10,color:"#5a7a9a"}}>Preço total (€)</label>
+              <input className="inp" type="number" placeholder="0.00" value={form.preco_total} onChange={e=>setForm(f=>({...f,preco_total:e.target.value}))}/>
+            </div>
+          </div>
+          <button className="btn btn-p" onClick={criarPack} disabled={!form.paciente_id||!form.preco_total}>💾 Criar Pack</button>
+        </div>
+      )}
+
+      {aba==="lista"&&packsComSaldo.map(pk=>{
+        const progresso=Math.round((pk.sessoes_realizadas/pk.total_sessoes)*100);
+        const pago_pct=Math.round((pk.pago_real/parseFloat(pk.preco_total||1))*100);
+        return(
+          <div key={pk.id} className="card" style={{marginBottom:8,borderColor:pk.divida>0?"#5a1a1a":pk.divida===0?"#1a4a3a":"#0d1828"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:12,color:"#dde4f0"}}>{pk.nome}</div>
+                <div style={{fontSize:10,color:"#5a7a9a"}}>{pk.pacientes?.nome||""}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                {pk.divida>0
+                  ?<div style={{fontSize:11,color:"#f87171",fontWeight:700}}>Em dívida: {pk.divida.toFixed(2)}€</div>
+                  :<div style={{fontSize:11,color:"#5ae0d8",fontWeight:700}}>✅ Saldado</div>
+                }
+                <div style={{fontSize:10,color:"#3d5a7a"}}>{pk.pago_real.toFixed(2)}€ / {parseFloat(pk.preco_total||0).toFixed(2)}€</div>
+              </div>
+            </div>
+            <div style={{background:"#0a1e2e",borderRadius:4,height:4,marginBottom:4}}>
+              <div style={{background:"#00c6b8",height:4,borderRadius:4,width:pago_pct+"%",transition:"width .3s"}}/>
+            </div>
+            <div style={{fontSize:9,color:"#3d5a7a",marginBottom:8}}>{pk.sessoes_realizadas}/{pk.total_sessoes} sessões · {pago_pct}% pago</div>
+            <div style={{display:"flex",gap:6}}>
+              <button className="btn btn-s btn-sm" style={{flex:1,fontSize:10}} onClick={()=>{setSel(pk);setAba("pagar");}}>💳 Registar Pagamento</button>
+              <button className="btn btn-sm" style={{flex:1,fontSize:10,background:"rgba(248,113,113,.1)",border:"1px solid #5a1a1a",color:"#f87171"}} onClick={async()=>{if(confirm("Apagar pack?"))await sb.from("packs_consultas").delete().eq("id",pk.id).then(()=>load());}}>🗑️</button>
+            </div>
+          </div>
+        );
+      })}
+
+      {aba==="pagar"&&sel&&(
+        <div className="card">
+          <button className="btn btn-s btn-sm" style={{width:"auto",marginBottom:8}} onClick={()=>{setSel(null);setAba("lista");}}>← Voltar</button>
+          <div className="card-t">💳 Registar Pagamento — {sel.nome}</div>
+          <div style={{fontSize:11,color:"#f87171",marginBottom:10}}>Em dívida: {(parseFloat(sel.preco_total||0)-sel.pago_real).toFixed(2)}€</div>
+          <label style={{fontSize:10,color:"#5a7a9a"}}>Valor recebido (€)</label>
+          <input className="inp" type="number" placeholder="0.00" value={pagForm.valor} onChange={e=>setPagForm(f=>({...f,valor:e.target.value}))} style={{marginBottom:8}}/>
+          <label style={{fontSize:10,color:"#5a7a9a"}}>Método</label>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+            {["MBWay","Transferência","Dinheiro","Cartão","Outro"].map(m=>(
+              <button key={m} onClick={()=>setPagForm(f=>({...f,metodo:m}))} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${pagForm.metodo===m?"#00c6b8":"#0d1828"}`,background:pagForm.metodo===m?"rgba(0,198,184,.1)":"#050810",color:pagForm.metodo===m?"#00c6b8":"#5a7a9a",fontSize:11,cursor:"pointer"}}>{m}</button>
+            ))}
+          </div>
+          <label style={{fontSize:10,color:"#5a7a9a"}}>Data</label>
+          <input className="inp" type="date" value={pagForm.data_pagamento} onChange={e=>setPagForm(f=>({...f,data_pagamento:e.target.value}))} style={{marginBottom:8}}/>
+          <label style={{fontSize:10,color:"#5a7a9a"}}>Notas (opcional)</label>
+          <input className="inp" placeholder="ex: referente à sessão 2" value={pagForm.notas} onChange={e=>setPagForm(f=>({...f,notas:e.target.value}))} style={{marginBottom:12}}/>
+          <button className="btn btn-p" onClick={registarPagamento} disabled={!pagForm.valor}>✅ Guardar Pagamento</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TELECONSULTA JITSI AUTO ─────────────────────────────────────────────────
+function TeleconsultaPanel({ user }) {
+  const [pacs, setPacs] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [sala, setSala] = useState("");
+  const [iframeMode, setIframeMode] = useState(false);
+  const APP_URL = "vitaldoctor.netlify.app";
+
+  useEffect(()=>{
+    sb.from("pacientes").select("id,nome,telefone").eq("terapeuta_id",user?.id).order("nome")
+      .then(({data})=>setPacs(data||[]));
+  },[user?.id]);
+
+  const gerarSala = () => {
+    if(!sel) return;
+    const roomId = `VitalDoctor-${user.id.substring(0,6)}-${sel.id.substring(0,6)}`;
+    setSala(`https://meet.jit.si/${roomId}`);
+  };
+
+  const enviarLink = () => {
+    if(!sel?.telefone||!sala) return;
+    const num=sel.telefone.replace(/[^0-9]/g,"");
+    const msg=`Olá ${sel.nome}! A nossa teleconsulta já está pronta:
+
+${sala}
+
+Clica no link na hora marcada. Não precisas de conta. 🩺`;
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,"_blank");
+  };
+
+  return (
+    <div className="fade" style={{padding:"0 0 60px 0"}}>
+      <div className="card-t" style={{marginBottom:10}}>📹 Teleconsulta (Jitsi — 100% Gratuito)</div>
+      <div className="card" style={{marginBottom:10}}>
+        <label style={{fontSize:11,color:"#5a7a9a",marginBottom:6,display:"block"}}>Paciente</label>
+        <select className="inp" value={sel?.id||""} onChange={e=>setSel(pacs.find(p=>p.id===e.target.value)||null)} style={{marginBottom:10}}>
+          <option value="">— seleccionar —</option>
+          {pacs.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+        </select>
+        <button className="btn btn-p" onClick={gerarSala} disabled={!sel} style={{marginBottom:10}}>📹 Gerar Sala de Videochamada</button>
+        {sala&&(
+          <div>
+            <div style={{background:"#050810",border:"1px solid #0d1828",borderRadius:8,padding:10,marginBottom:8}}>
+              <div style={{fontSize:10,color:"#3d5a7a",wordBreak:"break-all",marginBottom:6}}>{sala}</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                <button className="btn btn-s btn-sm" style={{fontSize:10}} onClick={()=>navigator.clipboard?.writeText(sala)}>📋 Copiar</button>
+                <a href={sala} target="_blank" rel="noopener noreferrer" className="btn btn-p btn-sm" style={{fontSize:10,textDecoration:"none",flex:1,textAlign:"center"}}>▶ Entrar na Sala</a>
+                {sel?.telefone&&<button className="btn btn-sm" style={{fontSize:10,background:"#25D36618",border:"1px solid #25D36640",color:"#25D366"}} onClick={enviarLink}>📱 Enviar WhatsApp</button>}
+              </div>
+            </div>
+            <label style={{display:"flex",gap:6,alignItems:"center",fontSize:11,color:"#5a7a9a",cursor:"pointer"}}>
+              <input type="checkbox" checked={iframeMode} onChange={e=>setIframeMode(e.target.checked)}/>
+              Abrir videochamada incorporada nesta página
+            </label>
+            {iframeMode&&(
+              <iframe src={sala+"#config.startWithAudioMuted=true&config.startWithVideoMuted=false"} style={{width:"100%",height:420,border:"none",borderRadius:10,marginTop:8}} allow="camera; microphone; fullscreen; display-capture"/>
+            )}
+          </div>
+        )}
+        <div style={{fontSize:10,color:"#2d4a66",marginTop:10,lineHeight:1.6}}>
+          Powered by Jitsi Meet — gratuito, sem conta, sem tempo limite. O paciente clica no link e entra directamente.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NovaConsulta({ user, onIniciar }) {
   const [modulos, setModulos] = useState([]);
   const [nomes, setNomes] = useState(user?.config?.sessoes_nomes || {
@@ -4746,6 +5284,7 @@ function NovaConsulta({ user, onIniciar }) {
 
       {/* TIPOS PADRÃO (UNIVERSAL - SEMPRE VISÍVEL) */}
       {[
+        { id:"universal", form:"universal", icon:"🌀", titulo:"Método Universal", sub:"Adaptável a qualquer terapia", desc:"Fluxo de consulta editável passo a passo — adapta à tua prática.", tags:["Universal","Editável","Qualquer terapia"] },
         { id:"consulta_unica", form:"form_a", icon:"🩺", titulo:nomes.consulta_unica, sub:"Atendimento único", desc:"Acolhimento → Avaliação inicial → Questionário → Análise → Protocolo personalizado", tags:["1ª consulta","Paciente novo","Diagnóstico claro"] },
         { id:"pack_s1", form:"form_c", caminho:1, icon:"1️⃣", titulo:nomes.pack_s1, sub:"Avaliação Inicial", desc:"Acolhimento → Questionário completo → Avaliação dos bloqueios → Protocolo 7 dias", tags:["Pack","Avaliação","Base emocional"] },
         { id:"pack_s2", form:"form_b", icon:"2️⃣", titulo:nomes.pack_s2, sub:"Análise Profunda", desc:"Avaliação detalhada → Mapeamento → Identificação de padrões → Protocolo de tratamento", tags:["Pack","Mapeamento","Raiz do sintoma"] },
@@ -4801,19 +5340,23 @@ function NovaConsulta({ user, onIniciar }) {
     </div>
   );
 }
-function ModuloMetodo({ user, adminMode, initAba, voltar }) {
+function ModuloMetodo({ user, adminMode, temAcesso, initAba, voltar }) {
   const [aceite, setAceite] = useState(jaAceitou(user?.id, "metodo"));
   const [aba, setAba] = useState(initAba || "consulta");
+  useEffect(() => { if (initAba) setAba(initAba); }, [initAba]);
   const [qForm, setQForm] = useState(null);
   const [formAtivo, setFormAtivo] = useState(null); // "form_a" | "form_b" | "form_c"
-  const [caminhoInit, setCaminhoInit] = useState(null); // caminho pré-seleccionado para form_c
-  const [tituloConsulta, setTituloConsulta] = useState(""); // nome do tipo de consulta escolhido
-  const [pacSel, setPacSel] = useState(null); // paciente seleccionado para a consulta
+  const [caminhoInit, setCaminhoInit] = useState(null);
+  const [tituloConsulta, setTituloConsulta] = useState("");
+  const [pacSel, setPacSel] = useState(null);
+  const [pacs, setPacs] = useState([]); // FIX: estado local de pacientes
   const [modulos, setModulos] = useState([]);
   const [busca, setBusca] = useState("");
   const [ok, setOk] = useState("");
-  const [moduloCustomSel, setModuloCustomSel] = useState(null); // id do módulo customizado
-  const [moduloCustomCarregado, setModuloCustomCarregado] = useState(null); // módulo customizado carregado
+  const [moduloCustomSel, setModuloCustomSel] = useState(null);
+  const [moduloCustomCarregado, setModuloCustomCarregado] = useState(null);
+  const [showModuloEditor, setShowModuloEditor] = useState(false);
+  const [modUniversal, setModUniversal] = useState(null); // módulo universal carregado
 
   useEffect(() => {
     if (user?.id) {
@@ -4924,12 +5467,16 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
   );
 
   const tabs = [
-    ["consulta",       "🩺 Nova Consulta"],
-    ["questionario",   "📋 Questionários"],
-    ["assistente",     "🤖 Assistente"],
-    ["farmacia",       "🌿 Farmácia"],
-    ["infanto",        "👶 Infanto"],
-    ["audios",         "🎧 Áudios"],
+    ["consulta",     "🩺 Consulta"],
+    ["preconsulta",  "📤 Pré-Consulta"],
+    ["packs",        "💳 Packs"],
+    ["teleconsulta", "📹 Vídeo"],
+    ["questionario", "📋 Quest."],
+    ["infanto",      "👶 Infanto"],
+    ["farmacia",     "🌿 Farmácia"],
+    ["assistente",   "🤖 IA"],
+    ["audios",       "🎧 Áudios"],
+    ...(temAcesso ? [["exclusivo", "⭐ Exclusivo"]] : []),
   ];
 
   // Ecrã de selecção de paciente (aparece ao escolher formulário)
@@ -4951,10 +5498,21 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
           <div className="al al-i" style={{fontSize:10,marginBottom:8}}>
             Só vês os teus próprios pacientes. Os dados são privados e não são partilhados com outros terapeutas.
           </div>
-          {filtrados.length===0 && <div style={{fontSize:11,color:"#2d4a66",textAlign:"center",padding:"14px 0"}}>Sem pacientes encontrados.</div>}
+          {filtrados.length===0 && busca.length>0 && (
+            <div style={{textAlign:"center",padding:"10px 0"}}>
+              <div style={{fontSize:11,color:"#2d4a66",marginBottom:8}}>Nenhum paciente encontrado.</div>
+              <button className="btn btn-p" style={{fontSize:11,padding:"8px 0"}} onClick={async()=>{
+                const nome=busca.trim(); if(!nome) return;
+                const{data,error}=await sb.from("pacientes").insert({nome,terapeuta_id:user.id}).select().single();
+                if(!error&&data){setPacs(ps=>[...ps,data]);setPacSel(data);}
+                else alert("Erro ao criar paciente: "+(error?.message||""));
+              }}>➕ Criar paciente "{busca.trim()}" e avançar</button>
+            </div>
+          )}
+          {filtrados.length===0 && busca.length===0 && <div style={{fontSize:11,color:"#2d4a66",textAlign:"center",padding:"14px 0"}}>Escreve o nome para pesquisar ou criar.</div>}
           {filtrados.map(p=>(
             <div key={p.id} onClick={()=>setPacSel(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#050810",border:"1px solid #0d1828",borderRadius:8,marginBottom:6,cursor:"pointer",transition:"border-color .15s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor="#1a3a5c"}
+              onMouseEnter={e=>e.currentTarget.style.borderColor="#00c6b8"}
               onMouseLeave={e=>e.currentTarget.style.borderColor="#0d1828"}>
               <div style={{width:36,height:36,borderRadius:"50%",background:"#0d1828",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>👤</div>
               <div><div style={{fontWeight:600,fontSize:12,color:"#b0c4d8"}}>{p.nome}</div><div style={{fontSize:10,color:"#2d4a66"}}>{p.email||p.telefone||""}</div></div>
@@ -4971,9 +5529,9 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
       {ok && <div className="al al-ok" style={{marginBottom:8}}>{ok}</div>}
       <div className="card">
         {voltar && <button className="btn btn-s btn-sm" style={{width:"auto",marginBottom:8}} onClick={voltar}>← Voltar</button>}
-        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:4,overflowX:"auto",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",paddingBottom:4}}>
           {tabs.map(([k,l])=>(
-            <button key={k} className={`chip ${aba===k?"on":""}`}
+            <button key={k} style={{flexShrink:0,padding:"6px 12px",borderRadius:16,border:"1px solid",borderColor:aba===k?"#00c6b8":"#0d1828",background:aba===k?"rgba(0,198,184,.12)":"transparent",color:aba===k?"#00c6b8":"#5a7a9a",fontSize:10,fontWeight:aba===k?700:400,cursor:"pointer",whiteSpace:"nowrap",transition:"all .15s"}}
               onClick={()=>{ if(k==="consulta"){voltarMenu();}else{setFormAtivo(null);setPacSel(null);setAba(k);} }}>
               {l}
             </button>
@@ -4983,11 +5541,25 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
 
       {/* Seções de edição do super admin removidas - só aparecem no Super Admin Panel */}
 
-      {aba==="consulta" && !formAtivo && <NovaConsulta user={user} onIniciar={handleIniciar} />}
+      {aba==="consulta" && !formAtivo && (
+        <>
+          <NovaConsulta user={user} onIniciar={handleIniciar} />
+          <div style={{marginTop:10}}>
+            <button className="btn btn-s" style={{fontSize:11,padding:"8px 0",borderColor:"#1a4a3a",color:"#5ae0d8"}} onClick={() => setShowModuloEditor(true)}>
+              ✏️ Editar Método Universal
+            </button>
+          </div>
+        </>
+      )}
+      {showModuloEditor && <MetodoUniversalEditor user={user} onClose={()=>setShowModuloEditor(false)} />}
+      {aba==="preconsulta" && <PainelPreConsulta user={user} />}
+      {aba==="packs" && <PainelPacks user={user} />}
+      {aba==="teleconsulta" && <TeleconsultaPanel user={user} />}
 
       {aba==="consulta_ativa" && formAtivo && pacSel && (
         <>
           {formAtivo==="custom_module" && moduloCustomCarregado && <ExecutorModuloCustomizado modulo={moduloCustomCarregado} paciente={pacSel} user={user} onGuardar={voltarMenu} onVoltar={() => { setModuloCustomSel(null); setModuloCustomCarregado(null); voltarMenu(); }} />}
+          {formAtivo==="universal" && <ExecutorMetodoUniversal paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
           {formAtivo==="form_a" && <FormPrimeiroAtendimento paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
           {formAtivo==="form_b" && <FormMapeamentoGrelha     paciente={pacSel} user={user} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
           {formAtivo==="form_c" && <FormAtendimentoEstruturado paciente={pacSel} user={user} caminhoInit={caminhoInit} tituloConsulta={tituloConsulta} onGuardar={handleGuardar} onVoltar={voltarMenu} />}
@@ -4999,6 +5571,16 @@ function ModuloMetodo({ user, adminMode, initAba, voltar }) {
       {aba==="farmacia"     && <Farmacia adminMode={adminMode} />}
       {aba==="infanto"      && <Infanto adminMode={adminMode} ir={(ab,fk)=>{ setFormAtivo(null); setPacSel(null); if(fk) setQForm(fk); setAba(ab); }} />}
       {aba==="audios"       && <ModuloAudios />}
+      {aba==="exclusivo" && (
+        temAcesso
+          ? <ModuloExclusivoBioHertz user={user} adminMode={adminMode} />
+          : <div className="fade" style={{padding:32,textAlign:"center"}}>
+              <div style={{fontSize:48,marginBottom:12}}>🔒</div>
+              <div style={{fontWeight:700,color:"#dde4f0",fontSize:"1.1rem",marginBottom:8}}>Módulo Exclusivo</div>
+              <div style={{color:"#5a7a9a",fontSize:13,lineHeight:1.7,marginBottom:16}}>Este módulo está reservado a terapeutas certificados.<br/>Contacta o administrador para activar o acesso.</div>
+              <button className="btn btn-s" style={{fontSize:12}} onClick={()=>setAba("suporte_msg")}>📩 Pedir Acesso</button>
+            </div>
+      )}
     </div>
   );
 }
