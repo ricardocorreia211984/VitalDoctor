@@ -2544,6 +2544,84 @@ function pontosComOverride() {
 }
 
 // ════════ Construtor de Módulos Terapêuticos (agnóstico) ════════
+
+// ─── TEMPLATES PRÉ-BUILT ─────────────────────────────────────────────────────
+const TEMPLATES_PREBUILT = [
+  {
+    id: "tpl_reiki",
+    icone: "✨",
+    nome: "Reiki",
+    descricao: "Protocolo completo para sessões de Reiki — canalização, chakras, avaliação energética e protocolo pós-sessão.",
+    categoria: "Terapias Energéticas",
+    passos: [
+      { id:"r1", titulo:"Acolhimento & Intenção", tipo:"texto_livre", pergunta:"Como se sente hoje? Qual a intenção para esta sessão?", obrigatorio:true },
+      { id:"r2", titulo:"Avaliação Energética Inicial", tipo:"multipla_escolha", pergunta:"Quais chakras reporta como mais sobrecarregados?", opcoes:["Raiz (segurança)","Sacral (emoções)","Plexo Solar (poder pessoal)","Coração (amor)","Garganta (expressão)","3º Olho (intuição)","Coroa (conexão)"], multiplo:true },
+      { id:"r3", titulo:"Sintomas Físicos", tipo:"texto_livre", pergunta:"Descreve os sintomas físicos presentes (dores, tensões, desconfortos):" },
+      { id:"r4", titulo:"Intensidade Antes", tipo:"escala", pergunta:"De 0 a 10, nível de tensão/desconforto antes da sessão:", min:0, max:10 },
+      { id:"r5", titulo:"Notas da Sessão", tipo:"notas_terapeuta", pergunta:"Zonas trabalhadas, sensações detectadas, bloqueios identificados (visível só para ti):" },
+      { id:"r6", titulo:"Intensidade Após", tipo:"escala", pergunta:"De 0 a 10, nível de tensão/desconforto após a sessão:", min:0, max:10 },
+      { id:"r7", titulo:"Experiência do Paciente", tipo:"texto_livre", pergunta:"O que o paciente sentiu durante e após a sessão?" },
+      { id:"r8", titulo:"Recomendações", tipo:"texto_livre", pergunta:"Recomendações para os próximos dias (hidratação, descanso, exercícios de ancoragem):" },
+    ],
+    template_relatorio: "✨ SESSÃO DE REIKI\nPaciente: {nome} · {data}\n\nINTENÇÃO DA SESSÃO:\n{r1}\n\nCHAKRAS EM FOCO:\n{r2}\n\nSINTOMAS:\n{r3}\n\nEVOLUÇÃO: {r4}/10 → {r6}/10\n\nEXPERIÊNCIA:\n{r7}\n\nRECOMENDAÇÕES:\n{r8}"
+  },
+  {
+    id: "tpl_psicologia",
+    icone: "🧩",
+    nome: "Psicologia / Psicoterapia",
+    descricao: "Ficha clínica completa para sessões de psicologia — anamnese, SOAP, avaliação de risco e plano terapêutico.",
+    categoria: "Saúde Mental",
+    passos: [
+      { id:"ps1", titulo:"Motivo da Consulta", tipo:"texto_livre", pergunta:"Qual o motivo que traz o paciente à consulta hoje?", obrigatorio:true },
+      { id:"ps2", titulo:"Estado de Humor (S — Subjectivo)", tipo:"multipla_escolha", pergunta:"O paciente descreve o seu estado como:", opcoes:["Ansioso/a","Triste/deprimido/a","Irritável","Tranquilo/a","Ambivalente","Com pensamentos intrusivos","Em crise","Estável"], multiplo:true },
+      { id:"ps3", titulo:"Observações Clínicas (O — Objectivo)", tipo:"notas_terapeuta", pergunta:"Apresentação, humor observado, contacto ocular, linguagem corporal, discurso:" },
+      { id:"ps4", titulo:"Avaliação (A — Avaliação)", tipo:"texto_livre", pergunta:"Hipóteses de trabalho, padrões identificados, evolução desde a última sessão:" },
+      { id:"ps5", titulo:"Risco", tipo:"sim_nao", pergunta:"Existem sinais de risco (auto ou heterolesão) a registar?" },
+      { id:"ps6", titulo:"Notas de Risco", tipo:"texto_livre", pergunta:"Se sim, descreve o risco identificado e as medidas tomadas:" },
+      { id:"ps7", titulo:"Plano (P — Plano)", tipo:"texto_livre", pergunta:"Intervenções desta sessão, tarefas para casa, próximos objectivos terapêuticos:" },
+      { id:"ps8", titulo:"Próxima Sessão", tipo:"texto_livre", pergunta:"Foco para a próxima sessão:" },
+    ],
+    template_relatorio: "🧩 NOTA CLÍNICA PSICOLÓGICA (SOAP)\nPaciente: {nome} · {data}\n\nS — SUBJECTIVO:\n{ps1}\nEstado: {ps2}\n\nO — OBJECTIVO:\n{ps3}\n\nA — AVALIAÇÃO:\n{ps4}\n\nP — PLANO:\n{ps7}\n\nPRÓXIMA SESSÃO:\n{ps8}"
+  },
+  {
+    id: "tpl_nutricao",
+    icone: "🥗",
+    nome: "Nutrição / Consulta Alimentar",
+    descricao: "Ficha de consulta nutricional completa — anamnese alimentar, objectivos, plano e seguimento.",
+    categoria: "Saúde & Bem-Estar",
+    passos: [
+      { id:"n1", titulo:"Objectivo Principal", tipo:"multipla_escolha", pergunta:"Qual o objectivo desta consulta?", opcoes:["Perda de peso","Ganho de massa muscular","Manutenção","Saúde digestiva","Energia e vitalidade","Alimentação anti-inflamatória","Intolerâncias / alergias","Outro"] },
+      { id:"n2", titulo:"Historial Alimentar", tipo:"texto_livre", pergunta:"Descreve um dia alimentar típico (refeições, horários, quantidades aproximadas):" },
+      { id:"n3", titulo:"Hábitos e Restrições", tipo:"multipla_escolha", pergunta:"Restrições ou preferências alimentares:", opcoes:["Vegetariano","Vegan","Sem glúten","Sem lactose","Sem açúcar","Sem carne vermelha","Halal","Kosher","Nenhuma restrição"], multiplo:true },
+      { id:"n4", titulo:"Sintomas Digestivos", tipo:"multipla_escolha", pergunta:"Sintomas presentes:", opcoes:["Inchaço","Gases","Obstipação","Diarreia","Refluxo","Náuseas","Nenhum"], multiplo:true },
+      { id:"n5", titulo:"Nível de Actividade Física", tipo:"multipla_escolha", pergunta:"Frequência de exercício:", opcoes:["Sedentário/a","1-2x semana","3-4x semana","5+ vezes semana","Treino de alta intensidade"] },
+      { id:"n6", titulo:"Medidas (se aplicável)", tipo:"texto_livre", pergunta:"Peso actual, altura, IMC (se disponível):" },
+      { id:"n7", titulo:"Plano Nutricional", tipo:"notas_terapeuta", pergunta:"Orientações, substituições, alimentos a incluir/reduzir, suplementação indicada (visível só para ti):" },
+      { id:"n8", titulo:"Recomendações para o Paciente", tipo:"texto_livre", pergunta:"Orientações práticas para o paciente levar para casa:" },
+    ],
+    template_relatorio: "🥗 RELATÓRIO NUTRICIONAL\nPaciente: {nome} · {data}\n\nOBJECTIVO: {n1}\nHISTORIAL ALIMENTAR:\n{n2}\n\nSINTOMAS DIGESTIVOS: {n4}\nACTIVIDADE FÍSICA: {n5}\n\nRECOMENDAÇÕES:\n{n8}"
+  },
+  {
+    id: "tpl_universal",
+    icone: "🌀",
+    nome: "Método Universal — Terapias Integrativas",
+    descricao: "Protocolo base completo e adaptável a qualquer terapia integrativa. Inclui acolhimento, avaliação, protocolo e devolutiva.",
+    categoria: "Universal",
+    passos: [
+      { id:"u1", titulo:"Acolhimento", tipo:"texto_livre", pergunta:"Como se sente hoje? O que o(a) traz à consulta?", obrigatorio:true },
+      { id:"u2", titulo:"Queixa Principal", tipo:"texto_livre", pergunta:"Qual é o principal desafio que quer trabalhar hoje?", obrigatorio:true },
+      { id:"u3", titulo:"Há quanto tempo", tipo:"multipla_escolha", pergunta:"Esta situação é:", opcoes:["Nova (primeira vez)","Recorrente (já aconteceu antes)","Crónica (há muito tempo)","Agravamento recente"] },
+      { id:"u4", titulo:"Intensidade", tipo:"escala", pergunta:"De 0 a 10, como sente este desafio agora?", min:0, max:10, obrigatorio:true },
+      { id:"u5", titulo:"Impacto na Vida", tipo:"multipla_escolha", pergunta:"Onde sente mais impacto?", opcoes:["Trabalho/Carreira","Relações afectivas","Saúde física","Sono/descanso","Bem-estar emocional","Família","Finanças","Sentido de vida"], multiplo:true },
+      { id:"u6", titulo:"O que já tentou", tipo:"texto_livre", pergunta:"O que já fez para melhorar? O que ajudou, mesmo que pouco?" },
+      { id:"u7", titulo:"Objectivo da Sessão", tipo:"texto_livre", pergunta:"O que gostaria de sentir/alcançar no final desta sessão?", obrigatorio:true },
+      { id:"u8", titulo:"Notas do Terapeuta", tipo:"notas_terapeuta", pergunta:"Observações clínicas e percepções (visível apenas para ti):" },
+      { id:"u9", titulo:"Protocolo & Próximos Passos", tipo:"texto_livre", pergunta:"Recomendações e protocolo para levar para casa:" },
+    ],
+    template_relatorio: "🌀 RELATÓRIO TERAPÊUTICO\nPaciente: {nome} · {data}\n\nQUEIXA: {u2}\nINTENSIDADE: {u4}/10\nIMPACTO: {u5}\n\nO QUE JÁ TENTOU:\n{u6}\n\nOBJECTIVO:\n{u7}\n\nPROTOCOLO & PRÓXIMOS PASSOS:\n{u9}"
+  },
+];
+
 function ConstrutorModulos({ user }) {
   const ehAdmin = user?.role === "superadmin";
   const [modulos, setModulos] = useState([]);
@@ -2562,23 +2640,28 @@ function ConstrutorModulos({ user }) {
     setLoad(false);
   };
 
-  const criarModulo = async () => {
-    if (!novo?.trim()) { setMsg("Dá um nome ao módulo."); return; }
+  const criarModulo = async (tpl = null) => {
+    const nome = tpl ? tpl.nome : novo;
+    if (!nome?.trim()) { setMsg("Dá um nome ao módulo."); return; }
     setLoad(true);
     const { data, error } = await sb.from("custom_modules").insert({
       terapeuta_id: user.id,
-      nome: novo,
-      descricao: "",
-      biblioteca: { criterios: [], protocolos: [] },
-      fluxo: { passos: [] },
-      logica: {},
-      template_relatorio: ""
+      nome: tpl ? tpl.nome : nome,
+      descricao: tpl?.descricao || "",
+      biblioteca: { criterios: [], protocolos: [], template_id: tpl?.id || null },
+      fluxo: { passos: tpl?.passos || [] },
+      logica: { template_relatorio: tpl?.template_relatorio || "" },
+      template_relatorio: tpl?.template_relatorio || "",
+      publicado: false,
+      bloqueado_com: null,
     }).select().single();
     if (error) { setMsg("Erro: " + error.message); setLoad(false); return; }
     setModulos([data, ...modulos]);
     setNovo(null);
     setEditando(data.id);
     setLoad(false);
+    setMsg("✅ " + (tpl ? `Template "${tpl.nome}" criado!` : "Módulo criado!"));
+    setTimeout(() => setMsg(""), 2500);
   };
 
   const deletarModulo = async (id) => {
@@ -2593,6 +2676,8 @@ function ConstrutorModulos({ user }) {
     setMsg("✅ Módulo publicado!");
     setTimeout(() => setMsg(""), 2000);
   };
+
+  const [verTemplates, setVerTemplates] = useState(!modulos.length);
 
   if (load) return (
     <div className="fade" style={{padding:40,textAlign:"center"}}>
@@ -2620,18 +2705,42 @@ function ConstrutorModulos({ user }) {
 
       {msg && <div className="al al-ok">{msg}</div>}
 
-      {/* CRIAR NOVO */}
+      {/* GALERIA DE TEMPLATES PRÉ-BUILT */}
+      <div className="card" style={{marginBottom:12,borderColor:"#1a4a6c"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:verTemplates?10:0}}>
+          <div className="card-t" style={{margin:0}}>📦 Templates Prontos</div>
+          <button onClick={()=>setVerTemplates(v=>!v)} style={{background:"none",border:"1px solid #0d1828",borderRadius:6,padding:"3px 10px",color:"#3d5a7a",fontSize:10,cursor:"pointer"}}>{verTemplates?"▲ Esconder":"▼ Ver templates"}</button>
+        </div>
+        {verTemplates && (
+          <div style={{display:"flex",flexDirection:"column",gap:7}}>
+            <div style={{fontSize:9,color:"#3d5a7a",marginBottom:4}}>Começa com um template já configurado e edita à tua medida:</div>
+            {TEMPLATES_PREBUILT.map(tpl=>(
+              <div key={tpl.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:"#050810",border:"1px solid #0d1828",borderRadius:8}}>
+                <span style={{fontSize:20,flexShrink:0}}>{tpl.icone}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:11,color:"#dde4f0"}}>{tpl.nome}</div>
+                  <div style={{fontSize:9,color:"#3d5a7a"}}>{tpl.categoria} · {tpl.passos.length} passos pré-definidos</div>
+                </div>
+                <button className="btn btn-p btn-sm" style={{width:"auto",fontSize:10,padding:"5px 11px",flexShrink:0}} onClick={()=>criarModulo(tpl)}>Usar →</button>
+              </div>
+            ))}
+            <div style={{textAlign:"center",fontSize:9,color:"#2d4a66",padding:"6px 0"}}>— ou cria do zero em baixo —</div>
+          </div>
+        )}
+      </div>
+
+      {/* CRIAR NOVO DO ZERO */}
       <div className="card">
-        <label className="lbl">Criar novo módulo</label>
+        <label className="lbl">Criar módulo do zero</label>
         <div style={{display:"flex",gap:8}}>
-          <input className="inp" value={novo || ""} onChange={e => setNovo(e.target.value)} placeholder="Ex: Meu Protocolo Nutricional" />
-          <button className="btn btn-p btn-sm" style={{width:"auto"}} disabled={load} onClick={criarModulo}>+ Criar</button>
+          <input className="inp" value={novo || ""} onChange={e => setNovo(e.target.value)} placeholder="Ex: Meu Protocolo Nutricional" onKeyDown={e=>e.key==="Enter"&&criarModulo()}/>
+          <button className="btn btn-p btn-sm" style={{width:"auto"}} disabled={load} onClick={()=>criarModulo()}>+ Criar</button>
         </div>
       </div>
 
       {/* LISTA */}
       {modulos.length === 0 ? (
-        <div className="al al-i">Nenhum módulo criado. Começa agora!</div>
+        <div className="al al-i">Nenhum módulo ainda. Usa um template acima ou cria do zero!</div>
       ) : (
         modulos.map(m => (
           <div key={m.id} className="card" style={{borderColor: m.publicado ? "#1a5a4c" : "#3a3a3a"}}>
@@ -5996,7 +6105,1358 @@ ESCUDO DOMINANTE: ${escDom[0].toUpperCase()} (${escDom[1]}/10)`);
   );
 }
 
-function ModuloADTab({ user, temAcesso }) {
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔮 MÓDULO HIKARI FAFE — ATENDIMENTO RADIESTÉSICO & LIMPEZA ENERGÉTICA
+// Pêndulo · 72 Nomes de Deus · Etiquetas Hebraicas · Reiki · Chakras
+// Módulo exclusivo — protegido por has_exclusive_therapy_access
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── BASE DE CONHECIMENTO ───────────────────────────────────────────────────
+
+const INTERFERENCIAS_ENERGETICAS = [
+  { n:"01", nome:"Larvas Astrais",    sintoma:"Pensamentos repetitivos que sugam. Cansaço extremo.",                    diagnostico:"Parasitas mentais alimentados por vícios ou pensamentos de baixa vibração." },
+  { n:"02", nome:"Miasmas",           sintoma:"Sinto-me doente e pesado, sem explicação.",                              diagnostico:"Sujidade energética acumulada no corpo etérico. Imunidade espiritual e física em queda." },
+  { n:"03", nome:"Inveja / Olho Gordo",sintoma:"Tudo se parte, os caminhos travam do nada.",                           diagnostico:"Cobiça e projeção de escassez de terceiros. Alguém quer o que o consultante tem." },
+  { n:"04", nome:"Magia Consciente",  sintoma:"Sinto que algo ou alguém me está a atacar.",                            diagnostico:"Ataque energético intencional. Trabalho feito ou ritual direcionado para prejudicar." },
+  { n:"05", nome:"Magia Inconsciente",sintoma:"Não consigo avançar, sinto um peso nas costas.",                        diagnostico:"Praga rogada ou ódio profundo. A intenção pesou sem ritual." },
+  { n:"06", nome:"Magia Ritual",      sintoma:"Sinto uma escuridão e um bloqueio total na vida.",                      diagnostico:"Magia negra ou rituais de amarração/destruição. Exige limpeza profunda." },
+  { n:"07", nome:"Auto-Sabotagem",    sintoma:"Eu tento, mas sou sempre eu a estragar tudo.",                          diagnostico:"O inimigo é interno. Crenças limitantes e síndrome de impostor a bloquear o sucesso." },
+  { n:"08", nome:"Contratos Cármicos",sintoma:"Parece que a minha vida anda em ciclos repetitivos.",                   diagnostico:"Dívida ou padrão de vidas passadas/antepassados. A lição ainda não foi aprendida." },
+  { n:"09", nome:"Obsessão (Mental)", sintoma:"Não tiro este problema/pessoa da cabeça.",                              diagnostico:"Fixação mental extrema. O campo está bloqueado por esta obsessão." },
+  { n:"10", nome:"Obsessores",        sintoma:"Tenho mudanças de humor repentinas e impulsos estranhos.",               diagnostico:"Entidades desencarnadas agarradas à aura. Estão a alimentar-se da energia vital." },
+  { n:"11", nome:"Geopatias",         sintoma:"Não durmo bem. A minha casa suga-me.",                                  diagnostico:"O ambiente está doente. Linhas telúricas, veias de água, memórias no solo." },
+  { n:"12", nome:"Campo Elétrico",    sintoma:"Estou sempre ansioso e com névoa mental.",                              diagnostico:"Poluição eletromagnética (Wi-Fi, ecrãs, antenas) a desregular o sistema nervoso central." },
+  { n:"13", nome:"Efeito Bumerangue",sintoma:"Fiz algo no passado e a minha vida parou.",                              diagnostico:"Retorno kármico. O consultor enviou/encomendou magia no passado e o efeito voltou." },
+  { n:"14", nome:"Semente Fértil",    sintoma:"Sinto uma energia nova no meu ventre/corpo.",                           diagnostico:"Energia altamente propícia para a geração de vida (gravidez) ou criação de um grande projeto." },
+  { n:"15", nome:"Alerta Somático",   sintoma:"O meu corpo está a dar sinais estranhos.",                              diagnostico:"O bloqueio energético já desceu para a matéria. Urgência: fazer check-up físico." },
+];
+
+const CHAKRAS_BLOQUEIO = [
+  { n:1, nome:"Raiz", aspecto:"Segurança", bloqueio:"Falta de base, medo da fome ou falência. A energia está a flutuar em pânico sobre o futuro material.", cura:"Pés descalços na terra/relva 5 min diários. Enraizar para voltar a confiar na providência." },
+  { n:2, nome:"Sacro", aspecto:"Emoção", bloqueio:"Alegria estagnada. Rigidez, culpa profunda ou bloqueio sexual. O fluxo criativo está morto.", cura:"Beber mais água e movimentar as ancas (dançar/alongar). Permitir que a emoção saia da estagnação." },
+  { n:3, nome:"Plexo Solar", aspecto:"Poder", bloqueio:"Desistência do poder pessoal. Submissão, ansiedade severa e vontade de controlar o incontrolável.", cura:"Apanhar sol na barriga. Dizer um 'NÃO' assertivo hoje. Proteger o umbigo em multidões." },
+  { n:4, nome:"Cardíaco", aspecto:"Amor", bloqueio:"Coração blindado pela dor. Mágoas não digeridas, lutos pendentes e recusa em confiar de novo.", cura:"Praticar o perdão (a si e aos outros). Mão no peito, respirar fundo e decretar: 'Eu liberto a dor.'" },
+  { n:5, nome:"Laríngeo", aspecto:"Verdade", bloqueio:"Silenciamento. 'Engolir sapos'. A verdade presa na garganta está a sufocar o caminho do indivíduo.", cura:"Falar, cantar, gritar ou escrever o que está preso e queimar o papel. A voz tem de ser ouvida." },
+  { n:6, nome:"Terceiro Olho", aspecto:"Mente", bloqueio:"Excesso de racionalização. Insónias, hipervigilância e cegueira espiritual (não ouve a intuição).", cura:"Silêncio absoluto por 5 minutos. Desligar ecrãs antes de dormir. Render a lógica à intuição." },
+  { n:7, nome:"Coronário", aspecto:"Fé", bloqueio:"Vazio existencial severo. Desconexão da Fonte, sensação de abandono divino e perda de sentido.", cura:"Agradecer 3 coisas simples ao acordar. Religar a 'antena' humana ao Divino." },
+  { n:8, nome:"Estrela da Alma", aspecto:"Propósito", bloqueio:"Vida no piloto automático. A alma exige alinhamento com a sua missão, mas o ego resiste.", cura:"Investir tempo naquilo que faz os olhos brilhar. Honrar a vocação e abandonar o modo 'sobrevivência'." },
+  { n:9, nome:"Portal Estelar", aspecto:"Proteção", bloqueio:"Campo aberto e rasgado. O paciente é uma esponja de tudo o que é denso à sua volta.", cura:"Criar um escudo. Visualizar uma redoma dourada diariamente. Elevar a vibração sem negociações." },
+];
+
+const ABERTURA_CAMINHOS = [
+  { n:1, pct:"0% a 30%",  prazo:"Longo Prazo",  leitura:"Caminho fortemente bloqueado. Exige de 6 meses a mais de 1 ano. Sem mudanças radicais nas atitudes ou limpeza energética, não vai acontecer." },
+  { n:2, pct:"31% a 60%", prazo:"Médio Prazo",  leitura:"Resistência ativa. Vai levar de 3 a 6 meses. O Universo pede que o paciente altere uma rota, limpe a mente ou corrija um comportamento antes da entrega." },
+  { n:3, pct:"61% a 90%", prazo:"Curto Prazo",  leitura:"O campo magnético está favorável. Manifestação nas próximas semanas ou num mês máximo. A energia já desceu da mente para a matéria. Mantém o foco." },
+  { n:4, pct:"91% a 100%",prazo:"Imediato",     leitura:"O caminho está rasgado e aberto. Manifestação em dias ou horas. Não há atritos. A Fonte abençoa a materialização instantânea." },
+];
+
+const ETIQUETAS_HEBRAICAS = [
+  "Libertar mágoas","Libertar ressentimentos","Perdoar","Limpar Karma","Eliminar fobias","Paciência",
+  "Não sentir culpa","Libertar memórias dolorosas do passado","Vontade","Sabedoria","Libertação","Prosperidade",
+  "Abundância","Rejuvenescimento celular","Coragem","Tolerância","Pensamentos positivos","Libertar medos",
+  "Reconciliação","Força interior","Confiança","Compaixão","Gratidão","Auto-estima","Aceitação","Respeito",
+  "Responsabilidade","Regeneração Celular","Segurança",
+];
+
+const NOMES_DEUS_SINTOMAS = {
+  "Ansiedade": ["Eliminando Pensamentos Negativos (#4)","Sem Medo (#36)","Seguindo em Frente (#58)"],
+  "Depressão": ["Jogando Fora a Depressão (#16)","Liberdade (#60)","DNA da Alma (#7)"],
+  "Trauma": ["Viagem no Tempo (#1)","Memórias (#32)","Certeza Absoluta (#46)"],
+  "Raiva": ["Dissipando a Raiva (#56)","Eliminando o Ódio (#29)","Neutralizando Energia Negativa (#8)"],
+  "Medo": ["Sem Medo (#36)","Revelando o Oculto (#42)","Certeza Absoluta (#46)"],
+  "Bloqueio financeiro": ["Sócia Silenciosa (#27)","O Poder da Prosperidade (#45)","Circuito (#38)"],
+  "Relacionamentos": ["Alma Gémea (#28)","Amor Incondicional (#12)","Eliminando o Ódio (#29)"],
+  "Falta de energia": ["Resgatando as Centelhas (#2)","Influências Angelicais (#9)","Agua (#61)"],
+  "Autoestima": ["Auto-estima (#41)","Grande Fuga (#17)","Projetando Imagem Positiva (#64)"],
+  "Propósito/vazio": ["Disque Deus (#19)","DNA da Alma (#7)","Cordão Umbilical (#59)"],
+  "Saúde física": ["Cura (#5)","Água (#61)","Olhares Podem Matar (#10)"],
+  "Vício": ["Vencendo os Vícios (#20)","Grande Fuga (#17)","Erradicando a Praga (#21)"],
+};
+
+// ─── EXECUTOR DO MÉTODO HIKARI ─────────────────────────────────────────────
+
+const FASES_HIKARI = [
+  { id:"f0", tipo:"triagem", nome:"Triagem / 1ª Consulta", icone:"🔮", cor:"#4a1a7c",
+    desc:"Medição de Energia Bovis · Pesquisa de Interferências (1-15) · Chakras · Abertura de Caminhos · Escolha de Etiquetas" },
+  { id:"f1", tipo:"mapeamento_frente", nome:"2ª Consulta — Mapeamento (Frente)", icone:"🗺️", cor:"#1a4a7c",
+    desc:"Mapeamento Frente: Sistemas Superior · Central · Inferior · Escudo · Quando/Idade · Reiki · Bovis" },
+  { id:"f2", tipo:"mapeamento_costas", nome:"3ª Consulta — Mapeamento (Costas)", icone:"🔄", cor:"#1a5a4c",
+    desc:"Mapeamento Costas: mesmo protocolo · Reiki · Alinhamento Chakras · Fechar Aura · Bovis final" },
+  { id:"f3", tipo:"mapeamento_completo", nome:"4ª Consulta — Mapeamento Completo", icone:"✨", cor:"#5a3a1a",
+    desc:"Frente + Costas · Protocolo completo · Avaliação de alta · Bovis final ≥ 10.000?" },
+  { id:"f4", tipo:"acompanhamento", nome:"Acompanhamento Entre Consultas", icone:"📊", cor:"#3a3a1a",
+    desc:"Verificação rápida: Interferências · Chakras · Abertura Caminhos · Bovis · Reforço se necessário" },
+];
+
+function ModuloHikariExecutor({ fase, paciente, user, consultaAnterior, onGuardar, onVoltar }) {
+  const [etapa, setEtapa] = useState(0);
+  const [dados, setDados] = useState({
+    bovis_antes: null, bovis_depois: null,
+    interferencias: [], // ids detectados
+    chakras_bloqueados: [], // ids
+    abertura_caminhos: null, // n: 1-4
+    etiquetas_escolhidas: [], // strings
+    notas_terapeuta: "",
+    protocolo_livre: "",
+    focos_nomes_deus: [], // strings
+    escudo_emocional: "",
+    quando_idade: "",
+    // Para mapeamento
+    pontos_frente: {}, pontos_costas: {},
+    reiki_feito: false, alinhamento_feito: false, aura_fechada: false,
+    alta: null, // "sim" | "nao" | "reforco"
+  });
+  const [guardando, setGuardando] = useState(false);
+  const d = (k, v) => setDados(prev => ({...prev, [k]: v}));
+  const toggleArr = (k, v) => setDados(prev => ({ ...prev, [k]: prev[k].includes(v) ? prev[k].filter(x=>x!==v) : [...prev[k], v] }));
+
+  const cor = fase.cor;
+
+  // ─── ETAPAS ────────────────────────────────────────────────────
+  const ETAPAS_TRIAGEM = [
+    "bovis_antes", "interferencias", "chakras", "abertura", "nomes_deus", "etiquetas", "protocolo", "bovis_depois", "notas"
+  ];
+  const ETAPAS_MAPEAMENTO = [
+    "bovis_antes", "pontos", "escudo", "quando_idade", "reiki", "chakras_alinhamento", "aura", "bovis_depois", "notas"
+  ];
+  const ETAPAS_ACOMP = [
+    "bovis_antes", "interferencias", "chakras", "abertura", "bovis_depois", "notas", "alta"
+  ];
+  const etapas = fase.tipo === "triagem" ? ETAPAS_TRIAGEM : fase.tipo === "acompanhamento" ? ETAPAS_ACOMP : ETAPAS_MAPEAMENTO;
+  const totalEtapas = etapas.length;
+  const etapaAtual = etapas[etapa];
+  const prog = Math.round(((etapa+1)/totalEtapas)*100);
+
+  const finalizar = async () => {
+    setGuardando(true);
+    // Gerar relatório automático
+    const relatorio = gerarRelatorioHikari(fase, dados, paciente, consultaAnterior);
+    const protocolo = gerarProtocoloHikari(fase, dados);
+    await onGuardar(fase.nome, { dados, relatorio, protocolo, fase: fase.id, bovis_antes: dados.bovis_antes, bovis_depois: dados.bovis_depois });
+    setGuardando(false);
+  };
+
+  const Header = () => (
+    <div style={{marginBottom:10}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>← Voltar</button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,fontWeight:800,color:"#dde4f0"}}>{fase.icone} {fase.nome}</div>
+          <div style={{fontSize:9,color:"#7a5a9a"}}>{paciente?.nome} · Etapa {etapa+1}/{totalEtapas}</div>
+        </div>
+      </div>
+      <div style={{background:"#1a0a2e",borderRadius:4,height:4}}>
+        <div style={{background:`linear-gradient(90deg,${cor},#9a5ae0)`,height:4,borderRadius:4,width:prog+"%",transition:"width .3s"}}/>
+      </div>
+    </div>
+  );
+
+  // ─── RENDER POR ETAPA ──────────────────────────────────────────
+
+  // BOVIS
+  if (etapaAtual === "bovis_antes" || etapaAtual === "bovis_depois") {
+    const k = etapaAtual; const label = etapaAtual === "bovis_antes" ? "Antes da Sessão" : "Após a Sessão";
+    const val = dados[k];
+    const RANGES = [
+      {min:0,max:999,label:"< 1.000",cor:"#f87171",sig:"Campo muito baixo. Doença iminente ou ativa."},
+      {min:1000,max:3499,label:"1.000 – 3.500",cor:"#fb923c",sig:"Baixa vitalidade. Sinais físicos e emocionais."},
+      {min:3500,max:6499,label:"3.500 – 6.500",cor:"#fbbf24",sig:"Campo médio. Vida normal mas sem brilho."},
+      {min:6500,max:9999,label:"6.500 – 10.000",cor:"#a3e635",sig:"Boa vitalidade. Campo em expansão."},
+      {min:10000,max:99999,label:"≥ 10.000",cor:"#5ae0d8",sig:"Campo saudável. Alta vibração. Alta terapêutica possível."},
+    ];
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>⚡ Energia Bovis — {label}</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:12}}>Mede com o pêndulo e insere o valor lido na escala bovis:</div>
+          <input className="inp" type="number" min="0" max="99999" placeholder="Ex: 6500" value={val||""}
+            onChange={e=>d(k, parseInt(e.target.value)||null)} style={{marginBottom:10,fontSize:16,textAlign:"center"}}/>
+          {val > 0 && (() => {
+            const r = RANGES.find(r=>val>=r.min&&val<=r.max) || RANGES[RANGES.length-1];
+            return <div style={{padding:10,background:r.cor+"20",border:`1px solid ${r.cor}40`,borderRadius:8,textAlign:"center"}}>
+              <div style={{fontWeight:700,color:r.cor,fontSize:13}}>{r.label}</div>
+              <div style={{fontSize:10,color:"#8ba3c0",marginTop:4}}>{r.sig}</div>
+              {etapaAtual==="bovis_depois" && consultaAnterior?.dados?.bovis_depois &&
+                <div style={{fontSize:10,color:"#5ae0d8",marginTop:6}}>
+                  Anterior: {consultaAnterior.dados.bovis_depois} → Atual: {val} ({val>=consultaAnterior.dados.bovis_depois?"📈 Subiu":"📉 Desceu"})
+                </div>}
+            </div>;
+          })()}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // INTERFERÊNCIAS
+  if (etapaAtual === "interferencias") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🔍 Pesquisa de Interferências Energéticas (1 a 15)</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Onde está o parasita ou o bloqueio no campo? Selecciona as que o pêndulo detetar:</div>
+          {INTERFERENCIAS_ENERGETICAS.map(ie=>{
+            const sel = dados.interferencias.includes(ie.nome);
+            return <div key={ie.n} onClick={()=>toggleArr("interferencias",ie.nome)}
+              style={{display:"flex",gap:8,padding:"8px 10px",marginBottom:5,borderRadius:8,border:`1px solid ${sel?cor+"80":"#1a0a2e"}`,background:sel?cor+"15":"#050810",cursor:"pointer",transition:"all .15s"}}>
+              <div style={{fontSize:12,fontWeight:800,color:sel?"#c8a8f0":"#3d5a7a",flexShrink:0,width:24}}>{ie.n}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:11,fontWeight:700,color:sel?"#c8a8f0":"#8ba3c0"}}>{ie.nome}</div>
+                <div style={{fontSize:9,color:"#5a3a7a"}}>{ie.sintoma}</div>
+              </div>
+              {sel&&<div style={{fontSize:14,color:cor}}>✓</div>}
+            </div>;
+          })}
+          {dados.interferencias.length>0&&<div style={{marginTop:8,padding:8,background:"#0a0518",borderRadius:6,fontSize:9,color:"#9a7ab8"}}>
+            Detectadas: {dados.interferencias.join(" · ")}
+          </div>}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // CHAKRAS
+  if (etapaAtual === "chakras" || etapaAtual === "chakras_alinhamento") {
+    const isAlinha = etapaAtual === "chakras_alinhamento";
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>
+            {isAlinha ? "🌀 Alinhamento de Chakras" : "🌀 Pesquisa de Chakras com Bloqueio (1 a 9)"}
+          </div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>
+            {isAlinha ? "Marca os chakras alinhados nesta sessão:" : "Qual é o centro de poder que está a sangrar energia?"}
+          </div>
+          {CHAKRAS_BLOQUEIO.map(c=>{
+            const sel = (isAlinha ? dados.chakras_alinhados||[] : dados.chakras_bloqueados).includes(c.nome);
+            const k2 = isAlinha ? "chakras_alinhados" : "chakras_bloqueados";
+            return <div key={c.n} onClick={()=>toggleArr(k2,c.nome)}
+              style={{display:"flex",gap:8,padding:"9px 10px",marginBottom:5,borderRadius:8,border:`1px solid ${sel?cor+"80":"#1a0a2e"}`,background:sel?cor+"15":"#050810",cursor:"pointer"}}>
+              <div style={{fontSize:12,fontWeight:800,color:sel?"#c8a8f0":"#3d5a7a",flexShrink:0,width:20}}>{c.n}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:11,fontWeight:700,color:sel?"#c8a8f0":"#8ba3c0"}}>{c.nome} <span style={{fontSize:9,color:"#7a5a9a"}}>({c.aspecto})</span></div>
+                {sel&&!isAlinha&&<div style={{fontSize:9,color:"#9a7ab8",marginTop:2}}>{c.cura}</div>}
+              </div>
+              {sel&&<div style={{fontSize:14,color:cor}}>✓</div>}
+            </div>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ABERTURA CAMINHOS
+  if (etapaAtual === "abertura") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🛤️ Abertura de Caminhos</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Medição com pêndulo — que percentagem indica?</div>
+          {ABERTURA_CAMINHOS.map(a=>{
+            const sel = dados.abertura_caminhos === a.n;
+            return <div key={a.n} onClick={()=>d("abertura_caminhos",a.n)}
+              style={{padding:"11px 13px",marginBottom:7,borderRadius:9,border:`2px solid ${sel?cor:"#1a0a2e"}`,background:sel?cor+"20":"#050810",cursor:"pointer",transition:"all .15s"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                <div style={{fontWeight:800,fontSize:13,color:sel?"#c8a8f0":"#8ba3c0"}}>{a.pct}</div>
+                <div style={{fontSize:11,fontWeight:700,color:sel?"#9a7ab8":"#3d5a7a"}}>{a.prazo}</div>
+              </div>
+              <div style={{fontSize:10,color:"#7a5a9a",lineHeight:1.5}}>{a.leitura}</div>
+            </div>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // NOMES DE DEUS SUGERIDOS
+  if (etapaAtual === "nomes_deus") {
+    // Sugerir com base nas interferências e chakras detectados
+    const focosDetectados = new Set();
+    dados.interferencias.forEach(i => {
+      if (i.includes("Magia")) focosDetectados.add("Bloqueio financeiro");
+      if (i.includes("Ansiedade") || i.includes("Obsessão")) focosDetectados.add("Ansiedade");
+      if (i.includes("Auto-Sabotagem")) focosDetectados.add("Autoestima");
+    });
+    dados.chakras_bloqueados.forEach(c => {
+      if (c === "Cardíaco") focosDetectados.add("Relacionamentos");
+      if (c === "Coronário" || c === "Estrela da Alma") focosDetectados.add("Propósito/vazio");
+      if (c === "Raiz") focosDetectados.add("Medo");
+    });
+    const sugeridos = [...focosDetectados].flatMap(f => NOMES_DEUS_SINTOMAS[f] || []);
+    const todos = Object.entries(NOMES_DEUS_SINTOMAS);
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🔮 72 Nomes de Deus — Foco de Cura</div>
+          {sugeridos.length>0&&<div style={{background:"#1a0a2e",borderRadius:6,padding:8,marginBottom:8}}>
+            <div style={{fontSize:9,color:"#9a7ab8",marginBottom:5}}>✨ SUGERIDOS com base no que detetaste:</div>
+            {sugeridos.map(s=>{
+              const sel = dados.focos_nomes_deus.includes(s);
+              return <div key={s} onClick={()=>toggleArr("focos_nomes_deus",s)}
+                style={{padding:"5px 8px",marginBottom:3,borderRadius:6,border:`1px solid ${sel?cor+"80":"#2a0a4c"}`,background:sel?cor+"15":"transparent",cursor:"pointer",fontSize:10,color:sel?"#c8a8f0":"#7a5a9a"}}>{sel?"✓ ":""}{s}</div>;
+            })}
+          </div>}
+          <div style={{fontSize:10,color:"#5a3a7a",marginBottom:6}}>Ou escolhe por tema:</div>
+          {todos.map(([tema,nomes])=>(
+            <div key={tema} style={{marginBottom:8}}>
+              <div style={{fontSize:9,color:"#7a5a9a",fontWeight:700,marginBottom:4}}>{tema}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {nomes.map(n=>{const sel=dados.focos_nomes_deus.includes(n);return <div key={n} onClick={()=>toggleArr("focos_nomes_deus",n)} style={{padding:"3px 8px",borderRadius:12,border:`1px solid ${sel?cor:"#1a0a2e"}`,background:sel?cor+"20":"#050810",cursor:"pointer",fontSize:9,color:sel?"#c8a8f0":"#5a7a9a"}}>{n}</div>;})}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ETIQUETAS HEBRAICAS
+  if (etapaAtual === "etiquetas") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🏷️ Etiquetas Hebraicas do Pêndulo</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Selecciona as etiquetas escolhidas para este protocolo (A1 a A29):</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:10}}>
+            {ETIQUETAS_HEBRAICAS.map((et,i)=>{
+              const sel=dados.etiquetas_escolhidas.includes(et);
+              return <div key={et} onClick={()=>toggleArr("etiquetas_escolhidas",et)}
+                style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${sel?cor:"#1a0a2e"}`,background:sel?cor+"20":"#050810",cursor:"pointer",fontSize:10,color:sel?"#c8a8f0":"#5a7a9a",fontWeight:sel?700:400}}>
+                A{i+1} — {et}
+              </div>;
+            })}
+          </div>
+          <label style={{fontSize:10,color:"#5a7a9a",display:"block",marginBottom:4}}>Notas sobre as etiquetas / modo de uso:</label>
+          <textarea className="inp" rows={2} value={dados.protocolo_livre} onChange={e=>d("protocolo_livre",e.target.value)} placeholder="Ex: A1 + A3 sobre o chakra cardíaco durante 7 dias..." style={{resize:"vertical"}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // PROTOCOLO LIVRE
+  if (etapaAtual === "protocolo") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>📋 Protocolo de Cura — Instruções Livres</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Adiciona as instruções específicas para este paciente (áudios, meditações, códigos numéricos, etc.):</div>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:10,color:"#5a3a7a",marginBottom:6}}>Sugestões rápidas (toca para adicionar):</div>
+            {["🎧 Áudio dos Medos e Gatilhos (modulação neuroplástica)",
+              "🌱 Meditação de Enraizamento — 5 min de manhã antes de se levantar",
+              "🌀 Meditação guiada de Reiki",
+              "🔢 Códigos numéricos dos 7 chakras principais",
+              "🏷️ Etiquetas hebraicas conforme escolhidas acima",
+              "💧 Beber 2L de água por dia durante o protocolo",
+              "🌿 Pés descalços na terra 5 min diários (enraizamento)",
+            ].map(s=>(
+              <div key={s} onClick={()=>d("protocolo_livre",(dados.protocolo_livre?dados.protocolo_livre+"\n":"")+s)}
+                style={{padding:"6px 10px",marginBottom:4,borderRadius:6,border:"1px solid #1a0a2e",background:"#050810",cursor:"pointer",fontSize:10,color:"#7a5a9a"}}>
+                + {s}
+              </div>
+            ))}
+          </div>
+          <textarea className="inp" rows={5} value={dados.protocolo_livre} onChange={e=>d("protocolo_livre",e.target.value)} placeholder="Protocolo personalizado..." style={{resize:"vertical"}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // REIKI / PONTOS
+  if (etapaAtual === "reiki") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:10}}>✨ Reiki & Desbloqueio de Pontos</div>
+          {[
+            ["reiki_feito","✨ Reiki realizado nesta sessão"],
+            ["alinhamento_feito","🌀 Alinhamento de chakras realizado"],
+          ].map(([k2,label])=>(
+            <div key={k2} onClick={()=>d(k2,!dados[k2])} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",marginBottom:6,borderRadius:8,border:`1px solid ${dados[k2]?cor+"80":"#1a0a2e"}`,background:dados[k2]?cor+"15":"#050810",cursor:"pointer"}}>
+              <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${dados[k2]?cor:"#3a1a5c"}`,background:dados[k2]?cor:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>{dados[k2]&&"✓"}</div>
+              <div style={{fontSize:11,color:dados[k2]?"#c8a8f0":"#8ba3c0"}}>{label}</div>
+            </div>
+          ))}
+          <label style={{fontSize:10,color:"#5a7a9a",marginTop:8,display:"block",marginBottom:4}}>Notas do terapeuta sobre os pontos trabalhados:</label>
+          <textarea className="inp" rows={3} value={dados.notas_terapeuta} onChange={e=>d("notas_terapeuta",e.target.value)} placeholder="Pontos específicos, sensações, reações..." style={{resize:"vertical"}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // FECHAR AURA
+  if (etapaAtual === "aura") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:10}}>🛡️ Fechar Aura</div>
+          <div onClick={()=>d("aura_fechada",!dados.aura_fechada)} style={{display:"flex",gap:10,alignItems:"center",padding:"12px 14px",borderRadius:8,border:`1px solid ${dados.aura_fechada?cor+"80":"#1a0a2e"}`,background:dados.aura_fechada?cor+"15":"#050810",cursor:"pointer"}}>
+            <div style={{width:22,height:22,borderRadius:4,border:`2px solid ${dados.aura_fechada?cor:"#3a1a5c"}`,background:dados.aura_fechada?cor:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>{dados.aura_fechada&&"✓"}</div>
+            <div style={{fontSize:12,color:dados.aura_fechada?"#c8a8f0":"#8ba3c0",fontWeight:700}}>🛡️ Aura fechada e selada</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // NOTAS FINAIS
+  if (etapaAtual === "notas") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>📝 Notas do Terapeuta</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:8}}>Observações clínicas, percepções intuitivas, próximos passos (visível apenas para ti):</div>
+          <textarea className="inp" rows={5} value={dados.notas_terapeuta} onChange={e=>d("notas_terapeuta",e.target.value)} placeholder="Notas privadas..." style={{resize:"vertical",marginBottom:12}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // AVALIAÇÃO DE ALTA
+  if (etapaAtual === "alta") {
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:10}}>🎯 Avaliação de Alta</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Com base em toda a avaliação de hoje (Bovis, interferências, chakras, caminhos):</div>
+          {[
+            {id:"alta",label:"✅ ALTA — Campo saneado. Bovis ≥ 10.000.",cor:"#5ae0d8"},
+            {id:"reforco",label:"🔄 REFORÇO — Campo em melhoria. Continuar protocolo.",cor:"#fbbf24"},
+            {id:"nao",label:"⚠️ SEM ALTA — Limpeza incompleta. Agendar nova sessão.",cor:"#f87171"},
+          ].map(o=>(
+            <div key={o.id} onClick={()=>d("alta",o.id)} style={{padding:"12px 14px",marginBottom:7,borderRadius:9,border:`2px solid ${dados.alta===o.id?o.cor:"#1a0a2e"}`,background:dados.alta===o.id?o.cor+"20":"#050810",cursor:"pointer"}}>
+              <div style={{fontSize:12,fontWeight:700,color:dados.alta===o.id?o.cor:"#8ba3c0"}}>{o.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={finalizar} disabled={guardando}>{guardando?"A guardar...":"✅ Finalizar & Gerar Relatório"}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // PONTOS DE MAPEAMENTO — usa o form existente adaptado
+  if (etapaAtual === "pontos") {
+    const face = fase.tipo === "mapeamento_costas" ? "costas" : "frente";
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:cor+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🗺️ Mapeamento — {face.charAt(0).toUpperCase()+face.slice(1)}</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:8}}>Sistemas Superior · Central · Inferior · Pontos de Entrada · Centros Vitais:</div>
+          {["escudo_emocional","quando_idade"].map(k2=>(
+            <div key={k2} style={{marginBottom:8}}>
+              <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:4}}>
+                {k2==="escudo_emocional"?"Escudo Emocional mais activo:":"Quando/Idade (época do trauma):"}
+              </label>
+              <input className="inp" value={dados[k2]||""} onChange={e=>d(k2,e.target.value)} placeholder={k2==="escudo_emocional"?"Ex: Impotência":"Ex: Infância, 7 anos, gestação..."}/>
+            </div>
+          ))}
+          <label style={{fontSize:10,color:"#5a7a9a",display:"block",marginBottom:4}}>Pontos detectados:</label>
+          <textarea className="inp" rows={4} value={dados.notas_terapeuta} onChange={e=>d("notas_terapeuta",e.target.value)} placeholder="Ex: S.Superior: Hipotálamo, Timo · S.Central: Estômago · S.Inferior: Rins · PE: Ombro dir, Costelas..." style={{resize:"vertical"}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+          <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        </div>
+      </div>
+    );
+  }
+
+  // FALLBACK
+  return (
+    <div className="fade">
+      <Header />
+      <div className="card"><div style={{textAlign:"center",padding:20,color:"#5a7a9a",fontSize:12}}>Etapa: {etapaAtual}</div></div>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+        {etapa<totalEtapas-1
+          ? <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+          : <button className="btn btn-p" style={{flex:2,background:cor,borderColor:cor}} onClick={finalizar} disabled={guardando}>{guardando?"A guardar...":"✅ Finalizar"}</button>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─── GERADOR DE RELATÓRIO HIKARI ────────────────────────────────────────────
+
+function gerarRelatorioHikari(fase, dados, paciente, anterior) {
+  const L = [];
+  const lin = (t) => L.push(t);
+  const sep = () => lin("─".repeat(52));
+  
+  lin(`🔮 RELATÓRIO — ${fase.nome.toUpperCase()}`);
+  lin(`Paciente: ${paciente?.nome} · Data: ${new Date().toLocaleDateString("pt-PT")}`);
+  lin(`Terapeuta: ${paciente?.terapeuta_nome||"—"}`);
+  sep();
+
+  // Bovis
+  if (dados.bovis_antes) {
+    lin(`\n⚡ ENERGIA BOVIS`);
+    lin(`  Antes: ${dados.bovis_antes}`);
+    if (dados.bovis_depois) lin(`  Após:  ${dados.bovis_depois} (${dados.bovis_depois>=dados.bovis_antes?"📈 Subiu":"📉 Desceu"})`);
+    if (anterior?.dados?.bovis_depois) lin(`  Consulta anterior: ${anterior.dados.bovis_depois}`);
+  }
+
+  // Interferências
+  if (dados.interferencias?.length > 0) {
+    lin(`\n🔍 INTERFERÊNCIAS ENERGÉTICAS DETECTADAS`);
+    dados.interferencias.forEach(ie => {
+      const data = INTERFERENCIAS_ENERGETICAS.find(x => x.nome === ie);
+      lin(`  • ${ie}`);
+      if (data) lin(`    Diagnóstico: ${data.diagnostico}`);
+    });
+  }
+
+  // Chakras
+  if (dados.chakras_bloqueados?.length > 0) {
+    lin(`\n🌀 CHAKRAS COM BLOQUEIO DETECTADO`);
+    dados.chakras_bloqueados.forEach(c => {
+      const data = CHAKRAS_BLOQUEIO.find(x => x.nome === c);
+      lin(`  • ${c}${data?" ("+data.aspecto+")":""}`);
+      if (data) lin(`    Cura indicada: ${data.cura}`);
+    });
+  }
+
+  // Abertura de caminhos
+  if (dados.abertura_caminhos) {
+    const ac = ABERTURA_CAMINHOS.find(a => a.n === dados.abertura_caminhos);
+    if (ac) {
+      lin(`\n🛤️ ABERTURA DE CAMINHOS`);
+      lin(`  ${ac.pct} — ${ac.prazo}`);
+      lin(`  ${ac.leitura}`);
+    }
+  }
+
+  // Pontos de mapeamento
+  if (dados.notas_terapeuta && fase.tipo.includes("mapeamento")) {
+    lin(`\n🗺️ PONTOS MAPEADOS`);
+    lin(`  ${dados.notas_terapeuta}`);
+    if (dados.escudo_emocional) lin(`  Escudo activo: ${dados.escudo_emocional}`);
+    if (dados.quando_idade) lin(`  Quando/Idade: ${dados.quando_idade}`);
+  }
+
+  // Procedimentos
+  const procs = [];
+  if (dados.reiki_feito) procs.push("Reiki");
+  if (dados.alinhamento_feito || dados.chakras_alinhados?.length > 0) procs.push("Alinhamento de Chakras");
+  if (dados.aura_fechada) procs.push("Fechar Aura");
+  if (procs.length > 0) { lin(`\n✨ PROCEDIMENTOS REALIZADOS`); lin(`  ${procs.join(" · ")}`); }
+
+  // Alta
+  if (dados.alta) {
+    lin(`\n🎯 AVALIAÇÃO DE ALTA`);
+    const altaTexto = {alta:"✅ ALTA — Campo saneado.",reforco:"🔄 REFORÇO — Continuar protocolo.",nao:"⚠️ SEM ALTA — Nova sessão necessária."};
+    lin(`  ${altaTexto[dados.alta]||dados.alta}`);
+  }
+
+  sep();
+  lin(`\n📋 PARA O PACIENTE`);
+  sep();
+  lin(`\n🌱 PROTOCOLO ENTRE SESSÕES`);
+  if (dados.protocolo_livre) { lin(dados.protocolo_livre); }
+  else {
+    lin("• Meditação de Enraizamento — 5 minutos de manhã, antes de se levantar");
+    lin("• Beber 2L de água por dia durante o protocolo");
+    if (dados.etiquetas_escolhidas?.length > 0) lin(`• Etiquetas hebraicas ativas: ${dados.etiquetas_escolhidas.join(", ")}`);
+  }
+
+  if (dados.focos_nomes_deus?.length > 0) {
+    lin(`\n🔮 72 NOMES DE DEUS INDICADOS`);
+    dados.focos_nomes_deus.forEach(n => lin(`  • ${n}`));
+  }
+
+  sep();
+  lin("\n⚠️ AVISO: Este relatório é de carácter terapêutico complementar e não substitui avaliação médica.");
+  return L.join("\n");
+}
+
+function gerarProtocoloHikari(fase, dados) {
+  const L = [];
+  L.push(`🔮 PROTOCOLO DE CURA — ${fase.nome}`);
+  L.push(`Data: ${new Date().toLocaleDateString("pt-PT")}`);
+  L.push("─".repeat(40));
+  if (dados.etiquetas_escolhidas?.length > 0) {
+    L.push("\n🏷️ ETIQUETAS HEBRAICAS PARA USAR:");
+    dados.etiquetas_escolhidas.forEach((e,i) => L.push(`  ${i+1}. ${e}`));
+  }
+  if (dados.focos_nomes_deus?.length > 0) {
+    L.push("\n🔮 72 NOMES DE DEUS:");
+    dados.focos_nomes_deus.forEach(n => L.push(`  • ${n}`));
+  }
+  if (dados.protocolo_livre) { L.push("\n📋 INSTRUÇÕES:"); L.push(dados.protocolo_livre); }
+  L.push("\n" + "─".repeat(40));
+  L.push("Usa as etiquetas sobre os chakras identificados ou sobre os pontos detectados no mapeamento.");
+  return L.join("\n");
+}
+
+// ─── PAINEL PRINCIPAL DO MÓDULO HIKARI ──────────────────────────────────────
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔯 TRABALHO À DISTÂNCIA — HON SHA ZE SHO NEN
+// Pêndulo · Reiki à Distância · Etiquetas Hebraicas
+// EXCLUSIVO: Hikari Fafe (Super Admin apenas)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const INTENCOES_PADRAO = [
+  "Desbloqueio e limpeza de amarras",
+  "Justiça e resolução célere",
+  "Limpeza de magia e interferências",
+  "Abertura de caminhos — prosperidade",
+  "Cura física e equilíbrio energético",
+  "Proteção divina e blindagem do campo",
+  "Libertação de contratos cármicos",
+  "Alinhamento com o propósito de alma",
+  "Restauração de vínculos familiares",
+  "Saúde emocional e paz interior",
+  "Concretização de projeto/negócio",
+  "Resolução de herança / processo legal",
+  "Reconexão espiritual com a Fonte",
+];
+
+const ETAPAS_TRABALHO = [
+  { id:"testemunho", label:"📝 Dados do Testemunho" },
+  { id:"bovis_antes", label:"⚡ Bovis Inicial" },
+  { id:"interferencias_distancia", label:"🔍 Interferências Detectadas" },
+  { id:"chakras_distancia", label:"🌀 Chakras em Bloqueio" },
+  { id:"abertura_distancia", label:"🛤️ Abertura de Caminhos" },
+  { id:"trabalho_realizado", label:"✨ Trabalho Realizado" },
+  { id:"etiquetas_distancia", label:"🏷️ Etiquetas Aplicadas" },
+  { id:"nomes_deus_distancia", label:"🔮 72 Nomes de Deus" },
+  { id:"bovis_depois", label:"⚡ Bovis Final" },
+  { id:"relatorio_distancia", label:"📋 Testemunho & Protocolo" },
+];
+
+function WorkDistanciaExecutor({ user, trabalhoInicial, onGuardar, onVoltar }) {
+  const [etapa, setEtapa] = useState(0);
+  const [dados, setDados] = useState(trabalhoInicial || {
+    // Testemunho
+    nome_completo: "", data_nascimento: "", intencoes: [],
+    intencao_livre: "", local_referencia: "", processo_referencia: "",
+    foto_enviada: false, objecto_testemunho: false,
+    // Medições
+    bovis_antes: null, bovis_depois: null,
+    interferencias: [], chakras_bloqueados: [],
+    abertura_caminhos: null,
+    // Trabalho
+    hon_sha_ze_sho_nen: false,
+    reiki_distancia: false,
+    cho_ku_rei: false,
+    sei_heki: false,
+    pendulo_usado: false,
+    duracao_minutos: 30,
+    // Etiquetas e nomes
+    etiquetas_escolhidas: [],
+    focos_nomes_deus: [],
+    // Notas
+    notas_privadas: "",
+    observacoes_pendulo: "",
+    // Acompanhamento
+    verificacoes: [], // array de {data, bovis, notas}
+    alta_distancia: null,
+  });
+  const d = (k, v) => setDados(prev => ({...prev, [k]: v}));
+  const toggleArr = (k, v) => setDados(prev => ({ ...prev, [k]: prev[k].includes(v) ? prev[k].filter(x=>x!==v) : [...prev[k], v] }));
+  const [guardando, setGuardando] = useState(false);
+
+  const etapaAtual = ETAPAS_TRABALHO[etapa];
+  const total = ETAPAS_TRABALHO.length;
+  const prog = Math.round(((etapa+1)/total)*100);
+  const COR = "#4a1a7c";
+
+  const Header = () => (
+    <div style={{marginBottom:10}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+        <button className="btn btn-s btn-sm" style={{width:"auto"}} onClick={onVoltar}>← Voltar</button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,fontWeight:800,color:"#dde4f0"}}>🔯 {etapaAtual.label}</div>
+          <div style={{fontSize:9,color:"#7a5a9a"}}>{dados.nome_completo||"Sem nome"} · Passo {etapa+1}/{total}</div>
+        </div>
+      </div>
+      <div style={{background:"#1a0a2e",borderRadius:4,height:4}}>
+        <div style={{background:`linear-gradient(90deg,${COR},#e040fb)`,height:4,borderRadius:4,width:prog+"%",transition:"width .3s"}}/>
+      </div>
+    </div>
+  );
+
+  const Navegacao = ({ultimoFinalizar}) => (
+    <div style={{display:"flex",gap:8,marginTop:14}}>
+      {etapa>0&&<button className="btn btn-s" style={{flex:1}} onClick={()=>setEtapa(i=>i-1)}>← Anterior</button>}
+      {!ultimoFinalizar
+        ? <button className="btn btn-p" style={{flex:2,background:COR,borderColor:COR}} onClick={()=>setEtapa(i=>i+1)}>Próximo →</button>
+        : <button className="btn btn-p" style={{flex:2,background:COR,borderColor:COR}} onClick={async()=>{
+            setGuardando(true);
+            const rel = gerarRelatorioDistancia(dados);
+            await onGuardar("Trabalho à Distância — "+dados.nome_completo, { dados, relatorio: rel });
+            setGuardando(false);
+          }} disabled={guardando}>{guardando?"A guardar...":"🔯 Finalizar & Gerar Testemunho"}</button>
+      }
+    </div>
+  );
+
+  // ── ETAPA: TESTEMUNHO ─────────────────────────────────────────
+  if (etapaAtual.id === "testemunho") return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{borderColor:COR+"60"}}>
+        <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:10}}>📝 Dados do Testemunho</div>
+        <div style={{background:"#0a0518",border:"1px solid #3a1a5c",borderRadius:8,padding:10,marginBottom:12,textAlign:"center"}}>
+          <div style={{fontSize:11,color:"#9a7ab8",fontStyle:"italic",letterSpacing:2}}>HON SHA ZE SHO NEN</div>
+          <div style={{fontSize:9,color:"#5a3a7a",marginTop:2}}>Símbolo Reiki — Cura à Distância · O espaço e o tempo não existem</div>
+        </div>
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:3}}>Nome Completo *</label>
+        <input className="inp" value={dados.nome_completo} onChange={e=>d("nome_completo",e.target.value)} placeholder="Nome completo da pessoa" style={{marginBottom:8}}/>
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:3}}>Data de Nascimento</label>
+        <input className="inp" type="date" value={dados.data_nascimento} onChange={e=>d("data_nascimento",e.target.value)} style={{marginBottom:8}}/>
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:3}}>Intenções (selecciona ou escreve)</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+          {INTENCOES_PADRAO.map(int=>{
+            const sel=dados.intencoes.includes(int);
+            return <div key={int} onClick={()=>toggleArr("intencoes",int)}
+              style={{padding:"4px 9px",borderRadius:12,border:`1px solid ${sel?COR:"#1a0a2e"}`,background:sel?COR+"20":"#050810",cursor:"pointer",fontSize:9,color:sel?"#c8a8f0":"#5a7a9a",fontWeight:sel?700:400}}>
+              {sel?"✓ ":""}{int}
+            </div>;
+          })}
+        </div>
+        <textarea className="inp" rows={2} value={dados.intencao_livre} onChange={e=>d("intencao_livre",e.target.value)} placeholder="Intenção específica adicional..." style={{resize:"vertical",marginBottom:8}}/>
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:3}}>Local / Imóvel / Referência</label>
+        <input className="inp" value={dados.local_referencia} onChange={e=>d("local_referencia",e.target.value)} placeholder="Ex: Rua de Moçambique nº1, Almada" style={{marginBottom:8}}/>
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:3}}>Nº de Processo / Referência Legal</label>
+        <input className="inp" value={dados.processo_referencia} onChange={e=>d("processo_referencia",e.target.value)} placeholder="Ex: Processo nº 6234/10.2 Tribunal de Almada"/>
+        <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>
+          {[
+            ["foto_enviada","📸 Foto do testemunho enviada / preparada"],
+            ["objecto_testemunho","🕯️ Objecto de testemunho preparado (se aplicável)"],
+          ].map(([k2,label])=>(
+            <div key={k2} onClick={()=>d(k2,!dados[k2])} style={{display:"flex",gap:8,alignItems:"center",padding:"7px 10px",borderRadius:7,border:`1px solid ${dados[k2]?COR+"60":"#1a0a2e"}`,background:dados[k2]?COR+"10":"#050810",cursor:"pointer"}}>
+              <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${dados[k2]?COR:"#3a1a5c"}`,background:dados[k2]?COR:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{dados[k2]&&"✓"}</div>
+              <div style={{fontSize:10,color:dados[k2]?"#c8a8f0":"#7a5a9a"}}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Navegacao />
+    </div>
+  );
+
+  // ── BOVIS ─────────────────────────────────────────────────────
+  if (etapaAtual.id === "bovis_antes" || etapaAtual.id === "bovis_depois") {
+    const k = etapaAtual.id === "bovis_antes" ? "bovis_antes" : "bovis_depois";
+    const label = etapaAtual.id === "bovis_antes" ? "Antes do Trabalho" : "Após o Trabalho";
+    const val = dados[k];
+    const RANGES = [
+      {min:0,max:999,cor:"#f87171",sig:"Campo muito baixo — bloqueio severo."},
+      {min:1000,max:3499,cor:"#fb923c",sig:"Baixa vitalidade — limpeza necessária."},
+      {min:3500,max:6499,cor:"#fbbf24",sig:"Campo médio — em processo."},
+      {min:6500,max:9999,cor:"#a3e635",sig:"Campo em expansão — evolução positiva."},
+      {min:10000,max:999999,cor:"#5ae0d8",sig:"Campo saudável — alta vibração."},
+    ];
+    const r = val ? (RANGES.find(rx=>val>=rx.min&&val<=rx.max)||RANGES[RANGES.length-1]) : null;
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:COR+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>⚡ Energia Bovis — {label}</div>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>
+            Mede o campo energético de {dados.nome_completo||"a pessoa"} com o pêndulo à distância:
+          </div>
+          <input className="inp" type="number" min="0" placeholder="Ex: 4500" value={val||""}
+            onChange={e=>d(k,parseInt(e.target.value)||null)} style={{marginBottom:10,fontSize:18,textAlign:"center"}}/>
+          {r && <div style={{padding:10,background:r.cor+"20",border:`1px solid ${r.cor}40`,borderRadius:8,textAlign:"center"}}>
+            <div style={{fontWeight:700,color:r.cor,fontSize:13}}>{val}</div>
+            <div style={{fontSize:10,color:"#8ba3c0",marginTop:3}}>{r.sig}</div>
+            {etapaAtual.id==="bovis_depois"&&dados.bovis_antes&&
+              <div style={{fontSize:11,color:val>=dados.bovis_antes?"#5ae0d8":"#f87171",marginTop:6,fontWeight:700}}>
+                {val>=dados.bovis_antes?"📈 Subiu":"📉 Desceu"} {Math.abs(val-dados.bovis_antes)} unidades
+              </div>}
+          </div>}
+        </div>
+        <Navegacao />
+      </div>
+    );
+  }
+
+  // ── INTERFERÊNCIAS À DISTÂNCIA ────────────────────────────────
+  if (etapaAtual.id === "interferencias_distancia") return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{borderColor:COR+"60"}}>
+        <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🔍 Interferências no Campo de {dados.nome_completo||"a pessoa"}</div>
+        <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Pesquisa com pêndulo à distância — 1 a 15:</div>
+        {INTERFERENCIAS_ENERGETICAS.map(ie=>{
+          const sel=dados.interferencias.includes(ie.nome);
+          return <div key={ie.n} onClick={()=>toggleArr("interferencias",ie.nome)}
+            style={{display:"flex",gap:8,padding:"7px 10px",marginBottom:4,borderRadius:8,border:`1px solid ${sel?COR+"80":"#1a0a2e"}`,background:sel?COR+"15":"#050810",cursor:"pointer"}}>
+            <div style={{fontSize:11,fontWeight:800,color:sel?"#c8a8f0":"#3d5a7a",width:22,flexShrink:0}}>{ie.n}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10,fontWeight:700,color:sel?"#c8a8f0":"#8ba3c0"}}>{ie.nome}</div>
+              {sel&&<div style={{fontSize:9,color:"#7a5a9a",marginTop:1}}>{ie.diagnostico}</div>}
+            </div>
+            {sel&&<div style={{color:COR,fontSize:12}}>✓</div>}
+          </div>;
+        })}
+      </div>
+      <Navegacao />
+    </div>
+  );
+
+  // ── CHAKRAS À DISTÂNCIA ───────────────────────────────────────
+  if (etapaAtual.id === "chakras_distancia") return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{borderColor:COR+"60"}}>
+        <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🌀 Chakras com Bloqueio</div>
+        {CHAKRAS_BLOQUEIO.map(c=>{
+          const sel=dados.chakras_bloqueados.includes(c.nome);
+          return <div key={c.n} onClick={()=>toggleArr("chakras_bloqueados",c.nome)}
+            style={{display:"flex",gap:8,padding:"8px 10px",marginBottom:4,borderRadius:8,border:`1px solid ${sel?COR+"80":"#1a0a2e"}`,background:sel?COR+"15":"#050810",cursor:"pointer"}}>
+            <div style={{fontSize:11,fontWeight:800,color:sel?"#c8a8f0":"#3d5a7a",width:18,flexShrink:0}}>{c.n}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10,fontWeight:700,color:sel?"#c8a8f0":"#8ba3c0"}}>{c.nome} <span style={{fontSize:8,color:"#5a3a7a"}}>({c.aspecto})</span></div>
+              {sel&&<div style={{fontSize:9,color:"#9a7ab8",marginTop:1}}>Cura: {c.cura}</div>}
+            </div>
+            {sel&&<div style={{color:COR,fontSize:12}}>✓</div>}
+          </div>;
+        })}
+      </div>
+      <Navegacao />
+    </div>
+  );
+
+  // ── ABERTURA DE CAMINHOS ──────────────────────────────────────
+  if (etapaAtual.id === "abertura_distancia") return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{borderColor:COR+"60"}}>
+        <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:8}}>🛤️ Abertura de Caminhos</div>
+        {ABERTURA_CAMINHOS.map(a=>{
+          const sel=dados.abertura_caminhos===a.n;
+          return <div key={a.n} onClick={()=>d("abertura_caminhos",a.n)}
+            style={{padding:"11px 13px",marginBottom:6,borderRadius:9,border:`2px solid ${sel?COR:"#1a0a2e"}`,background:sel?COR+"20":"#050810",cursor:"pointer"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+              <div style={{fontWeight:800,fontSize:12,color:sel?"#c8a8f0":"#8ba3c0"}}>{a.pct}</div>
+              <div style={{fontSize:10,color:sel?"#9a7ab8":"#3d5a7a"}}>{a.prazo}</div>
+            </div>
+            <div style={{fontSize:9,color:"#7a5a9a",lineHeight:1.5}}>{a.leitura}</div>
+          </div>;
+        })}
+      </div>
+      <Navegacao />
+    </div>
+  );
+
+  // ── TRABALHO REALIZADO ────────────────────────────────────────
+  if (etapaAtual.id === "trabalho_realizado") return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{borderColor:COR+"60"}}>
+        <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:10}}>✨ Trabalho Realizado</div>
+        <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Marca o que foi feito nesta sessão à distância:</div>
+        {[
+          ["hon_sha_ze_sho_nen","🔯 HON SHA ZE SHO NEN — Reiki à distância activado"],
+          ["reiki_distancia","🌀 Reiki à distância — canalização completa"],
+          ["cho_ku_rei","⚡ CHO KU REI — Amplificação de poder"],
+          ["sei_heki","💜 SEI HE KI — Harmonização mental/emocional"],
+          ["pendulo_usado","🔮 Pêndulo usado durante todo o trabalho"],
+        ].map(([k2,label])=>(
+          <div key={k2} onClick={()=>d(k2,!dados[k2])}
+            style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",marginBottom:6,borderRadius:8,border:`1px solid ${dados[k2]?COR+"80":"#1a0a2e"}`,background:dados[k2]?COR+"15":"#050810",cursor:"pointer"}}>
+            <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${dados[k2]?COR:"#3a1a5c"}`,background:dados[k2]?COR:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11}}>{dados[k2]&&"✓"}</div>
+            <div style={{fontSize:11,color:dados[k2]?"#c8a8f0":"#8ba3c0"}}>{label}</div>
+          </div>
+        ))}
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginTop:10,marginBottom:4}}>Duração do trabalho (minutos):</label>
+        <input className="inp" type="number" min="5" max="180" value={dados.duracao_minutos||30} onChange={e=>d("duracao_minutos",parseInt(e.target.value)||30)} style={{marginBottom:8}}/>
+        <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:4}}>Observações do pêndulo / percepções durante o trabalho:</label>
+        <textarea className="inp" rows={4} value={dados.observacoes_pendulo} onChange={e=>d("observacoes_pendulo",e.target.value)} placeholder="O que o pêndulo indicou, sensações, bloqueios encontrados, como respondeu o campo..." style={{resize:"vertical"}}/>
+      </div>
+      <Navegacao />
+    </div>
+  );
+
+  // ── ETIQUETAS À DISTÂNCIA ─────────────────────────────────────
+  if (etapaAtual.id === "etiquetas_distancia") return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{borderColor:COR+"60"}}>
+        <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:4}}>🏷️ Etiquetas Hebraicas Aplicadas</div>
+        <div style={{fontSize:10,color:"#7a5a9a",marginBottom:10}}>Selecciona as etiquetas usadas neste trabalho à distância:</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+          {ETIQUETAS_HEBRAICAS.map((et,i)=>{
+            const sel=dados.etiquetas_escolhidas.includes(et);
+            return <div key={et} onClick={()=>toggleArr("etiquetas_escolhidas",et)}
+              style={{padding:"4px 9px",borderRadius:8,border:`1px solid ${sel?COR:"#1a0a2e"}`,background:sel?COR+"20":"#050810",cursor:"pointer",fontSize:9,color:sel?"#c8a8f0":"#5a7a9a",fontWeight:sel?700:400}}>
+              A{i+1}·{et}
+            </div>;
+          })}
+        </div>
+      </div>
+      <Navegacao />
+    </div>
+  );
+
+  // ── 72 NOMES DE DEUS ──────────────────────────────────────────
+  if (etapaAtual.id === "nomes_deus_distancia") {
+    const autoSugeridos = [];
+    dados.intencoes.forEach(int=>{
+      if (int.includes("Justiça")) autoSugeridos.push("Amenizando o Julgamento (#44)","O Poder da Prosperidade (#45)");
+      if (int.includes("Desbloqueio") || int.includes("amarra")) autoSugeridos.push("Expulsando os Resíduos do Mal (#11)","Grande Fuga (#17)");
+      if (int.includes("Abertura") || int.includes("prosperidade")) autoSugeridos.push("O Poder da Prosperidade (#45)","Circuito (#38)","Sócia Silenciosa (#27)");
+      if (int.includes("Protecção") || int.includes("Proteção")) autoSugeridos.push("Neutralizando Energia Negativa (#8)","Olhares Podem Matar (#10)");
+      if (int.includes("herança") || int.includes("processo") || int.includes("legal")) autoSugeridos.push("Amenizando o Julgamento (#44)","O Poder da Prosperidade (#45)","Ordem a Partir do Caos (#26)");
+    });
+    const sugeridos = [...new Set(autoSugeridos)];
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:COR+"60"}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:8}}>🔮 72 Nomes de Deus</div>
+          {sugeridos.length>0&&<div style={{background:"#1a0a2e",borderRadius:7,padding:8,marginBottom:8}}>
+            <div style={{fontSize:9,color:"#9a7ab8",marginBottom:5}}>✨ Sugeridos para esta intenção:</div>
+            {sugeridos.map(s=>{
+              const sel=dados.focos_nomes_deus.includes(s);
+              return <div key={s} onClick={()=>toggleArr("focos_nomes_deus",s)}
+                style={{padding:"5px 8px",marginBottom:3,borderRadius:6,border:`1px solid ${sel?COR+"80":"#2a0a4c"}`,background:sel?COR+"15":"transparent",cursor:"pointer",fontSize:10,color:sel?"#c8a8f0":"#7a5a9a"}}>{sel?"✓ ":""}{s}</div>;
+            })}
+          </div>}
+          <div style={{fontSize:9,color:"#5a3a7a",marginBottom:6}}>Ou adiciona por tema:</div>
+          {Object.entries(NOMES_DEUS_SINTOMAS).slice(0,6).map(([tema,nomes])=>(
+            <div key={tema} style={{marginBottom:7}}>
+              <div style={{fontSize:9,color:"#7a5a9a",fontWeight:700,marginBottom:3}}>{tema}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+                {nomes.map(n=>{const sel=dados.focos_nomes_deus.includes(n);return <div key={n} onClick={()=>toggleArr("focos_nomes_deus",n)} style={{padding:"2px 7px",borderRadius:10,border:`1px solid ${sel?COR:"#1a0a2e"}`,background:sel?COR+"20":"#050810",cursor:"pointer",fontSize:8,color:sel?"#c8a8f0":"#5a7a9a"}}>{n}</div>;})}
+              </div>
+            </div>
+          ))}
+        </div>
+        <Navegacao />
+      </div>
+    );
+  }
+
+  // ── RELATÓRIO FINAL ───────────────────────────────────────────
+  if (etapaAtual.id === "relatorio_distancia") {
+    const [notasPrivadas, setNotasPrivadas] = useState(dados.notas_privadas||"");
+    const [altaSel, setAltaSel] = useState(dados.alta_distancia||null);
+    return (
+      <div className="fade">
+        <Header />
+        <div className="card" style={{borderColor:COR+"60",marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:13,color:"#dde4f0",marginBottom:8}}>📋 Fecho do Trabalho</div>
+          <label style={{fontSize:10,color:"#7a5a9a",display:"block",marginBottom:4}}>Notas privadas do terapeuta:</label>
+          <textarea className="inp" rows={3} value={notasPrivadas} onChange={e=>{setNotasPrivadas(e.target.value);d("notas_privadas",e.target.value);}} placeholder="Percepções, próximos passos, reforço..." style={{resize:"vertical",marginBottom:10}}/>
+          <div style={{fontSize:10,color:"#7a5a9a",marginBottom:6}}>Estado do trabalho:</div>
+          {[
+            {id:"concluido",label:"✅ Trabalho concluído — agendar verificação",cor:"#5ae0d8"},
+            {id:"reforco",label:"🔄 Necessário reforço — repetir em X dias",cor:"#fbbf24"},
+            {id:"processo",label:"⏳ Em processo — monitorizar",cor:"#9a7ab8"},
+          ].map(o=>(
+            <div key={o.id} onClick={()=>{setAltaSel(o.id);d("alta_distancia",o.id);}}
+              style={{padding:"9px 12px",marginBottom:5,borderRadius:8,border:`2px solid ${altaSel===o.id?o.cor:"#1a0a2e"}`,background:altaSel===o.id?o.cor+"15":"#050810",cursor:"pointer"}}>
+              <div style={{fontSize:11,fontWeight:700,color:altaSel===o.id?o.cor:"#8ba3c0"}}>{o.label}</div>
+            </div>
+          ))}
+        </div>
+        <Navegacao ultimoFinalizar={true} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade">
+      <Header />
+      <div className="card" style={{textAlign:"center",padding:20,color:"#5a7a9a",fontSize:12}}>Etapa em desenvolvimento</div>
+      <Navegacao />
+    </div>
+  );
+}
+
+function gerarRelatorioDistancia(dados) {
+  const L = [];
+  L.push("🔯 RELATÓRIO — TRABALHO À DISTÂNCIA");
+  L.push("HON SHA ZE SHO NEN — O espaço e o tempo não existem");
+  L.push("─".repeat(50));
+  L.push(`\nDADOS DO TESTEMUNHO`);
+  L.push(`Nome: ${dados.nome_completo}`);
+  if (dados.data_nascimento) L.push(`Nascimento: ${new Date(dados.data_nascimento).toLocaleDateString("pt-PT")}`);
+  if (dados.local_referencia) L.push(`Local/Imóvel: ${dados.local_referencia}`);
+  if (dados.processo_referencia) L.push(`Processo: ${dados.processo_referencia}`);
+  L.push(`Data do trabalho: ${new Date().toLocaleDateString("pt-PT")}`);
+  
+  if (dados.intencoes?.length>0 || dados.intencao_livre) {
+    L.push(`\nINTENÇÃO`);
+    dados.intencoes?.forEach(i=>L.push(`  • ${i}`));
+    if (dados.intencao_livre) L.push(`  • ${dados.intencao_livre}`);
+  }
+
+  L.push(`\n⚡ ENERGIA BOVIS`);
+  L.push(`  Antes: ${dados.bovis_antes||"—"}`);
+  L.push(`  Após:  ${dados.bovis_depois||"—"}${dados.bovis_depois&&dados.bovis_antes?" ("+(dados.bovis_depois>=dados.bovis_antes?"📈 Subiu":"📉 Desceu")+" "+Math.abs((dados.bovis_depois||0)-(dados.bovis_antes||0))+" unidades)":""}`);
+
+  if (dados.interferencias?.length>0) {
+    L.push(`\n🔍 INTERFERÊNCIAS DETECTADAS`);
+    dados.interferencias.forEach(i=>{
+      const dt=INTERFERENCIAS_ENERGETICAS.find(x=>x.nome===i);
+      L.push(`  • ${i}${dt?" — "+dt.diagnostico:""}`);
+    });
+  }
+  if (dados.chakras_bloqueados?.length>0) {
+    L.push(`\n🌀 CHAKRAS EM BLOQUEIO`);
+    dados.chakras_bloqueados.forEach(c=>{
+      const dt=CHAKRAS_BLOQUEIO.find(x=>x.nome===c);
+      L.push(`  • ${c}${dt?" ("+dt.aspecto+")":""}`);
+    });
+  }
+  if (dados.abertura_caminhos) {
+    const ac=ABERTURA_CAMINHOS.find(a=>a.n===dados.abertura_caminhos);
+    if(ac){L.push(`\n🛤️ ABERTURA DE CAMINHOS`);L.push(`  ${ac.pct} — ${ac.prazo}`);}
+  }
+
+  L.push(`\n✨ TRABALHO REALIZADO`);
+  const proc=[];
+  if(dados.hon_sha_ze_sho_nen)proc.push("HON SHA ZE SHO NEN");
+  if(dados.reiki_distancia)proc.push("Reiki à Distância");
+  if(dados.cho_ku_rei)proc.push("CHO KU REI");
+  if(dados.sei_heki)proc.push("SEI HE KI");
+  if(dados.pendulo_usado)proc.push("Pêndulo");
+  L.push(`  ${proc.join(" · ")||"—"}`);
+  if(dados.duracao_minutos)L.push(`  Duração: ${dados.duracao_minutos} minutos`);
+  if(dados.observacoes_pendulo)L.push(`\nObservações do pêndulo:\n  ${dados.observacoes_pendulo}`);
+
+  if(dados.etiquetas_escolhidas?.length>0){
+    L.push(`\n🏷️ ETIQUETAS HEBRAICAS APLICADAS`);
+    dados.etiquetas_escolhidas.forEach((e,i)=>L.push(`  A${ETIQUETAS_HEBRAICAS.indexOf(e)+1} — ${e}`));
+  }
+  if(dados.focos_nomes_deus?.length>0){
+    L.push(`\n🔮 72 NOMES DE DEUS ACTIVADOS`);
+    dados.focos_nomes_deus.forEach(n=>L.push(`  • ${n}`));
+  }
+
+  const estadoTexto={concluido:"✅ TRABALHO CONCLUÍDO — agendar verificação",reforco:"🔄 NECESSÁRIO REFORÇO",processo:"⏳ EM PROCESSO — monitorizar"};
+  if(dados.alta_distancia)L.push(`\n🎯 ESTADO: ${estadoTexto[dados.alta_distancia]||dados.alta_distancia}`);
+  
+  L.push(`\n─`.repeat(1)+"─".repeat(49));
+  L.push("Este trabalho foi realizado com intenção pura de cura e bem-estar.");
+  L.push("Resultado confidencial — uso exclusivo do terapeuta.");
+  return L.join("\n");
+}
+
+// ─── PAINEL GESTÃO TRABALHOS À DISTÂNCIA (Super Admin / Hikari only) ─────────
+
+function PainelDistancia({ user }) {
+  const isSuperAdmin = user?.role === "superadmin" || user?.email === "ricardocorreia.211984@gmail.com";
+  const [trabalhos, setTrabalhos] = useState([]);
+  const [sel, setSel] = useState(null); // trabalho a executar
+  const [verRelatorio, setVerRelatorio] = useState(null);
+  const [novoNome, setNovoNome] = useState("");
+  const [msg, setMsg] = useState("");
+  const [filtro, setFiltro] = useState("todos"); // todos | concluido | reforco | processo
+
+  useEffect(()=>{
+    if(!isSuperAdmin) return;
+    sb.from("consultas").select("*")
+      .eq("terapeuta_id", user.id)
+      .eq("tipo", "Trabalho à Distância")
+      .order("created_at", {ascending:false})
+      .then(({data})=>setTrabalhos(data||[]))
+      .catch(()=>{});
+  },[user?.id]);
+
+  if (!isSuperAdmin) return (
+    <div style={{padding:24,textAlign:"center"}}>
+      <div style={{fontSize:40,marginBottom:10}}>🔒</div>
+      <div style={{color:"#f87171",fontSize:12}}>Acesso restrito ao Super Admin.</div>
+    </div>
+  );
+
+  if (sel) return (
+    <WorkDistanciaExecutor user={user} trabalhoInicial={sel.dados_formulario?.dados}
+      onGuardar={async(tipo,dados)=>{
+        if (sel.id) {
+          // Actualizar trabalho existente
+          await sb.from("consultas").update({dados_formulario:dados}).eq("id",sel.id);
+        } else {
+          // Novo trabalho
+          await sb.from("consultas").insert({terapeuta_id:user.id,paciente_id:null,tipo,dados_formulario:dados,data:new Date().toISOString().split("T")[0]});
+        }
+        setMsg("✅ Guardado!");setTimeout(()=>setMsg(""),2000);
+        setSel(null);
+        // Reload
+        const {data}=await sb.from("consultas").select("*").eq("terapeuta_id",user.id).eq("tipo","Trabalho à Distância").order("created_at",{ascending:false});
+        setTrabalhos(data||[]);
+      }}
+      onVoltar={()=>setSel(null)} />
+  );
+
+  if (verRelatorio) return (
+    <div className="fade" style={{paddingBottom:60}}>
+      <button className="btn btn-s btn-sm" style={{width:"auto",marginBottom:10}} onClick={()=>setVerRelatorio(null)}>← Voltar</button>
+      <div style={{background:"#050810",border:"1px solid #1a0a2e",borderRadius:10,padding:14,fontSize:10,color:"#8ba3c0",fontFamily:"monospace",whiteSpace:"pre-wrap",lineHeight:1.7,maxHeight:500,overflowY:"auto",marginBottom:10}}>
+        {verRelatorio}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+        <button className="btn btn-p" style={{background:"#4a1a7c",borderColor:"#4a1a7c",fontSize:11}} onClick={()=>navigator.clipboard?.writeText(verRelatorio)}>📋 Copiar</button>
+        <button className="btn btn-s" style={{fontSize:11}} onClick={()=>{const w=window.open("","_blank");if(!w)return;w.document.write(`<pre style="font-family:monospace;white-space:pre-wrap;padding:24px;font-size:12px;line-height:1.7">${verRelatorio.replace(/</g,"&lt;")}</pre>`);w.document.close();w.print();}}>🖨️ PDF</button>
+      </div>
+    </div>
+  );
+
+  const trabalhosFiltrados = filtro==="todos" ? trabalhos : trabalhos.filter(t=>t.dados_formulario?.dados?.alta_distancia===filtro);
+  const stats = { total:trabalhos.length, concluido:trabalhos.filter(t=>t.dados_formulario?.dados?.alta_distancia==="concluido").length, reforco:trabalhos.filter(t=>t.dados_formulario?.dados?.alta_distancia==="reforco").length, processo:trabalhos.filter(t=>t.dados_formulario?.dados?.alta_distancia==="processo").length };
+
+  return (
+    <div className="fade" style={{paddingBottom:60}}>
+      {msg&&<div className="al al-ok" style={{marginBottom:8}}>{msg}</div>}
+
+      <div style={{background:"linear-gradient(135deg,#1a0a2e,#0d0518)",border:"1px solid #4a1a7c40",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <span style={{fontSize:22}}>🔯</span>
+          <div>
+            <div style={{fontWeight:800,fontSize:13,color:"#dde4f0"}}>Trabalhos à Distância</div>
+            <div style={{fontSize:9,color:"#7a5a9a"}}>HON SHA ZE SHO NEN · Gestão exclusiva Hikari Fafe</div>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginTop:8}}>
+          {[["Total",stats.total,"#c8a8f0"],["✅",stats.concluido,"#5ae0d8"],["🔄",stats.reforco,"#fbbf24"],["⏳",stats.processo,"#9a7ab8"]].map(([l,v,cor])=>(
+            <div key={l} style={{textAlign:"center",padding:"6px 0",background:"#0a0518",borderRadius:6}}>
+              <div style={{fontSize:16,fontWeight:800,color:cor}}>{v}</div>
+              <div style={{fontSize:9,color:"#5a3a7a"}}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button className="btn btn-p" style={{marginBottom:12,background:"#4a1a7c",borderColor:"#4a1a7c"}}
+        onClick={()=>setSel({id:null,dados_formulario:null})}>
+        🔯 Novo Trabalho à Distância
+      </button>
+
+      <div style={{display:"flex",gap:4,marginBottom:10,overflowX:"auto"}}>
+        {[["todos","Todos"],["concluido","✅ Concluídos"],["reforco","🔄 Reforço"],["processo","⏳ Em Processo"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setFiltro(k)} style={{flexShrink:0,padding:"5px 10px",borderRadius:12,border:`1px solid ${filtro===k?"#9a5ae0":"#1a0a2e"}`,background:filtro===k?"rgba(154,90,224,.15)":"#050810",color:filtro===k?"#c8a8f0":"#5a7a9a",fontSize:10,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+
+      {trabalhosFiltrados.length===0 && <div style={{textAlign:"center",padding:20,color:"#3d5a7a",fontSize:11}}>Nenhum trabalho encontrado.</div>}
+
+      {trabalhosFiltrados.map(t=>{
+        const d = t.dados_formulario?.dados || {};
+        const estado = {concluido:"✅",reforco:"🔄",processo:"⏳"}[d.alta_distancia||""] || "🔮";
+        const bovisOk = d.bovis_depois >= 10000;
+        return (
+          <div key={t.id} className="card" style={{marginBottom:8,borderColor:d.alta_distancia==="concluido"?"#1a5a4c":d.alta_distancia==="reforco"?"#5a4a00":"#1a0a2e"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:12,color:"#dde4f0"}}>{estado} {d.nome_completo||"(sem nome)"}</div>
+                <div style={{fontSize:9,color:"#5a3a7a",marginTop:1}}>
+                  {d.data_nascimento&&new Date(d.data_nascimento).toLocaleDateString("pt-PT")+" · "}
+                  {new Date(t.created_at||Date.now()).toLocaleDateString("pt-PT")}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:bovisOk?"#5ae0d8":"#f87171",fontWeight:700}}>{d.bovis_depois||"—"} Bovis</div>
+                {d.abertura_caminhos&&<div style={{fontSize:9,color:"#7a5a9a"}}>{ABERTURA_CAMINHOS.find(a=>a.n===d.abertura_caminhos)?.pct}</div>}
+              </div>
+            </div>
+            {(d.intencoes?.length>0||d.intencao_livre)&&(
+              <div style={{fontSize:9,color:"#7a5a9a",marginBottom:6,lineHeight:1.5}}>
+                {[...(d.intencoes||[]),d.intencao_livre].filter(Boolean).join(" · ")}
+              </div>
+            )}
+            <div style={{display:"flex",gap:5}}>
+              <button className="btn btn-s btn-sm" style={{flex:1,fontSize:9}} onClick={()=>setSel(t)}>✏️ Editar</button>
+              <button className="btn btn-s btn-sm" style={{flex:1,fontSize:9}} onClick={()=>setVerRelatorio(t.dados_formulario?.relatorio||"")}>📄 Relatório</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ModuloHikariTab({ user, temAcesso }) {
+  const [faseSel, setFaseSel] = useState(null);
+  const [pacSel, setPacSel] = useState(null);
+  const [pacs, setPacs] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [relatorio, setRelatorio] = useState(null);
+  const [protocolo, setProtocolo] = useState(null);
+  const [historico, setHistorico] = useState([]);
+  const [abaRel, setAbaRel] = useState("relatorio");
+
+  useEffect(()=>{
+    if (!temAcesso) return;
+    sb.from("pacientes").select("id,nome,telefone").eq("terapeuta_id",user?.id).order("nome")
+      .then(({data})=>setPacs(data||[]));
+  },[user?.id,temAcesso]);
+
+  useEffect(()=>{
+    if (!pacSel) return;
+    sb.from("consultas").select("*").eq("paciente_id",pacSel.id).eq("terapeuta_id",user?.id)
+      .order("criado_em",{ascending:false}).then(({data})=>{
+        const h = (data||[]).filter(c=>c.dados_formulario?.fase?.startsWith("f"));
+        setHistorico(h);
+      });
+  },[pacSel?.id]);
+
+  if (!temAcesso) return (
+    <div className="fade" style={{padding:32,textAlign:"center"}}>
+      <div style={{fontSize:52,marginBottom:12}}>🔮</div>
+      <div style={{fontWeight:800,color:"#dde4f0",fontSize:"1.1rem",marginBottom:8}}>Método Hikari Fafe</div>
+      <div style={{color:"#7a5a9a",fontSize:12,lineHeight:1.8,marginBottom:20}}>Acesso reservado. Solicita activação ao administrador.</div>
+      <button className="btn btn-s" style={{borderColor:"#4a1a7c",color:"#c8a8f0",fontSize:12}} onClick={()=>window.open("https://t.me/+rOkqo8Orr-NhOTVk","_blank")}>📩 Pedir Acesso</button>
+    </div>
+  );
+
+  if (relatorio && protocolo) return (
+    <div className="fade" style={{paddingBottom:60}}>
+      <div style={{display:"flex",gap:4,marginBottom:10}}>
+        {[["relatorio","📄 Relatório"],["protocolo","🏷️ Protocolo"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setAbaRel(k)} style={{flex:1,padding:"7px 0",borderRadius:8,border:`1px solid ${abaRel===k?"#9a5ae0":"#0d1828"}`,background:abaRel===k?"rgba(154,90,224,.15)":"#050810",color:abaRel===k?"#c8a8f0":"#5a7a9a",fontSize:11,fontWeight:abaRel===k?700:400,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+      <div style={{background:"#050810",border:"1px solid #1a0a2e",borderRadius:10,padding:14,fontSize:10,color:"#8ba3c0",fontFamily:"monospace",whiteSpace:"pre-wrap",lineHeight:1.7,maxHeight:420,overflowY:"auto",marginBottom:12}}>
+        {abaRel==="relatorio"?relatorio:protocolo}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+        <button className="btn btn-p" style={{fontSize:11,background:"#4a1a7c",borderColor:"#4a1a7c"}} onClick={()=>{navigator.clipboard?.writeText(abaRel==="relatorio"?relatorio:protocolo);}}>📋 Copiar</button>
+        <button className="btn btn-s" style={{fontSize:11}} onClick={()=>{const w=window.open("","_blank");if(!w)return;w.document.write(`<pre style="font-family:monospace;white-space:pre-wrap;padding:24px;font-size:12px;line-height:1.7">${(abaRel==="relatorio"?relatorio:protocolo).replace(/</g,"&lt;")}</pre>`);w.document.close();w.print();}}>🖨️ PDF</button>
+        {pacSel?.telefone&&<button style={{gridColumn:"1/-1",padding:"9px 0",borderRadius:8,border:"1px solid #25D36640",background:"#25D36618",color:"#25D366",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={()=>{const num=pacSel.telefone.replace(/[^0-9]/g,"");const txt=(abaRel==="relatorio"?relatorio:protocolo).substring(0,900)+"...";window.open(`https://wa.me/${num}?text=${encodeURIComponent(txt)}`,"_blank");}}>📱 Enviar WhatsApp</button>}
+        <button className="btn btn-s" style={{gridColumn:"1/-1",fontSize:10}} onClick={()=>{setRelatorio(null);setProtocolo(null);setFaseSel(null);setPacSel(null);}}>← Nova Sessão</button>
+      </div>
+    </div>
+  );
+
+  if (faseSel && pacSel) {
+    const anterior = historico[0];
+    return <ModuloHikariExecutor fase={faseSel} paciente={pacSel} user={user} consultaAnterior={anterior?.dados_formulario}
+      onGuardar={async(tipo,dados)=>{
+        await sb.from("consultas").insert({terapeuta_id:user.id,paciente_id:pacSel.id,tipo,dados_formulario:dados,data:new Date().toISOString().split("T")[0]});
+        setRelatorio(dados.relatorio);
+        setProtocolo(dados.protocolo);
+      }}
+      onVoltar={()=>{setFaseSel(null);}} />;
+  }
+
+  if (faseSel && !pacSel) return (
+    <div className="fade">
+      <button className="btn btn-s btn-sm" style={{width:"auto",marginBottom:12}} onClick={()=>setFaseSel(null)}>← Voltar</button>
+      <div style={{fontWeight:700,color:"#c8a8f0",fontSize:13,marginBottom:10}}>{faseSel.icone} {faseSel.nome} — Paciente</div>
+      <input className="inp" placeholder="🔍 Pesquisar ou criar paciente..." value={busca} onChange={e=>setBusca(e.target.value)} style={{marginBottom:8}}/>
+      <div style={{maxHeight:340,overflowY:"auto"}}>
+        {pacs.filter(p=>p.nome.toLowerCase().includes(busca.toLowerCase())).map(p=>(
+          <div key={p.id} onClick={()=>setPacSel(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#050810",border:"1px solid #1a0a2e",borderRadius:8,marginBottom:5,cursor:"pointer",transition:"border-color .15s"}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor="#9a5ae0"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor="#1a0a2e"}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#4a1a7c,#2a0d4c)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>👤</div>
+            <div style={{flex:1,fontWeight:600,fontSize:12,color:"#c8a8f0"}}>{p.nome}</div>
+            <div style={{color:"#9a5ae0"}}>▶</div>
+          </div>
+        ))}
+        {pacs.filter(p=>p.nome.toLowerCase().includes(busca.toLowerCase())).length===0&&busca.length>1&&(
+          <button className="btn btn-p" style={{fontSize:11,background:"#4a1a7c",borderColor:"#4a1a7c"}} onClick={async()=>{
+            const{data,error}=await sb.from("pacientes").insert({nome:busca.trim(),terapeuta_id:user.id}).select().single();
+            if(!error&&data){setPacs(ps=>[...ps,data]);setPacSel(data);}
+          }}>➕ Criar "{busca.trim()}" e avançar</button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fade">
+      <div style={{background:"linear-gradient(135deg,#1a0a2e,#0d0518)",border:"1px solid #4a1a7c40",borderRadius:12,padding:"16px 18px",marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <span style={{fontSize:24}}>🔮</span>
+          <div>
+            <div style={{fontWeight:800,fontSize:14,color:"#dde4f0"}}>Método Hikari Fafe</div>
+            <div style={{fontSize:9,color:"#7a5a9a",letterSpacing:1}}>PÊNDULO · ETIQUETAS HEBRAICAS · REIKI · LIMPEZA ENERGÉTICA</div>
+          </div>
+        </div>
+        <div style={{fontSize:10,color:"#7a5a9a",lineHeight:1.7}}>
+          Selecciona a fase do atendimento. O relatório e protocolo são gerados automaticamente.
+        </div>
+      </div>
+
+      {FASES_HIKARI.map(f=>(
+        <div key={f.id} onClick={()=>setFaseSel(f)}
+          style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",marginBottom:8,borderRadius:10,border:`1px solid ${f.cor}40`,background:`${f.cor}08`,cursor:"pointer",transition:"all .18s"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=f.cor;e.currentTarget.style.background=f.cor+"18";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=f.cor+"40";e.currentTarget.style.background=f.cor+"08";}}>
+          <div style={{width:44,height:44,borderRadius:10,background:`linear-gradient(135deg,${f.cor},#0d0518)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{f.icone}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:12,color:"#dde4f0"}}>{f.nome}</div>
+            <div style={{fontSize:10,color:"#7a5a9a"}}>{f.desc}</div>
+          </div>
+          <div style={{color:f.cor,fontSize:16}}>▶</div>
+        </div>
+      ))}
+
+      <div style={{padding:10,background:"#0a0518",border:"1px solid #2a0a4c",borderRadius:8,marginTop:8}}>
+        <div style={{fontSize:9,color:"#5a3a7a",lineHeight:1.7}}>
+          🔒 Método protegido. Todos os dados ficam guardados na ficha do paciente para cruzamento evolutivo entre sessões.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModuloADTab({ user, temAcesso, onFarmacia, onInfanto }) {
   const [sel, setSel] = useState(null);       // tipo seleccionado
   const [pacSel, setPacSel] = useState(null); // paciente seleccionado
   const [pacs, setPacs] = useState([]);
@@ -6093,10 +7553,14 @@ function ModuloADTab({ user, temAcesso }) {
         </div>
       ))}
 
-      <div style={{marginTop:14,padding:12,background:"#0a0518",border:"1px solid #2a0a4c",borderRadius:8}}>
-        <div style={{fontSize:10,color:"#5a3a7a",lineHeight:1.7}}>
-          🔒 Este módulo e os seus conteúdos são propriedade intelectual protegida.<br/>
-          Acesso controlado pelo administrador. Não partilhar sem autorização.
+      {/* Acesso rápido a Farmácia e Infanto dentro do módulo A&D */}
+      <div style={{marginTop:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+        <button className="btn btn-s" style={{fontSize:10,borderColor:"#1a5a4c",color:"#5ae0d8"}} onClick={onFarmacia}>🌿 Farmácia</button>
+        <button className="btn btn-s" style={{fontSize:10,borderColor:"#5a4a1a",color:"#f0c070"}} onClick={onInfanto}>👶 Infanto-Juvenil</button>
+      </div>
+      <div style={{padding:10,background:"#0a0518",border:"1px solid #2a0a4c",borderRadius:8}}>
+        <div style={{fontSize:9,color:"#5a3a7a",lineHeight:1.7}}>
+          🔒 Propriedade intelectual protegida. Acesso controlado. Não partilhar.
         </div>
       </div>
     </div>
@@ -6105,9 +7569,20 @@ function ModuloADTab({ user, temAcesso }) {
 
 // ─── MÓDULO EXCLUSIVO — tab protegida ───────────────────────────────────────
 // ModuloExclusivoTab é agora o wrapper do ModuloADTab
-function ModuloExclusivoTab({ user, temAcesso, adminMode }) {
-  // Delega para o módulo rico de Ansiedade & Depressão
-  return <ModuloADTab user={user} temAcesso={temAcesso} />;
+function ModuloExclusivoTab({ user, temAcesso, adminMode, onFarmacia, onInfanto }) {
+  const [subMod, setSubMod] = useState("hikari"); // hikari | ad
+  return (
+    <div className="fade">
+      <div style={{display:"flex",gap:3,marginBottom:10,overflowX:"auto"}}>
+        {[["hikari","🔮 Hikari Fafe"],["distancia","🔯 À Distância"],["ad","🧠 A&D"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setSubMod(k)} style={{flexShrink:0,flex:1,padding:"7px 0",borderRadius:8,border:`1px solid ${subMod===k?"#9a5ae0":"#1a0a2e"}`,background:subMod===k?"rgba(154,90,224,.15)":"#050810",color:subMod===k?"#c8a8f0":"#5a7a9a",fontSize:10,fontWeight:subMod===k?700:400,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+      {subMod==="hikari"&&<ModuloHikariTab user={user} temAcesso={temAcesso} />}
+      {subMod==="distancia"&&<PainelDistancia user={user} />}
+      {subMod==="ad"&&<ModuloADTab user={user} temAcesso={temAcesso} onFarmacia={onFarmacia||(() => {})} onInfanto={onInfanto||(() => {})} />}
+    </div>
+  );
   /* Nota: custom_modules com bloqueado_com ficam disponíveis dentro do ModuloADTab
      quando o terapeuta criar módulos exclusivos adicionais */
 }
@@ -6349,7 +7824,7 @@ function ModuloMetodo({ user, adminMode, temAcesso, initAba, voltar }) {
     ["farmacia",     "🌿 Farmácia"],
     ["assistente",   "🤖 IA"],
     ["audios",       "🎧 Áudios"],
-    ...(temAcesso ? [["exclusivo", "🧠 Exclusivo"]] : []),
+    ...(temAcesso ? [["exclusivo", "🧠 A&D"]] : []),
   ];
 
   // Ecrã de selecção de paciente (aparece ao escolher formulário)
@@ -6444,7 +7919,7 @@ function ModuloMetodo({ user, adminMode, temAcesso, initAba, voltar }) {
       {aba==="farmacia"     && <Farmacia adminMode={adminMode} />}
       {aba==="infanto"      && <Infanto adminMode={adminMode} ir={(ab,fk)=>{ setFormAtivo(null); setPacSel(null); if(fk) setQForm(fk); setAba(ab); }} />}
       {aba==="audios"       && <ModuloAudios />}
-      {aba==="exclusivo" && <ModuloExclusivoTab user={user} temAcesso={temAcesso} adminMode={adminMode} />}
+      {aba==="exclusivo" && <ModuloExclusivoTab user={user} temAcesso={temAcesso} adminMode={adminMode} onFarmacia={()=>setAba("farmacia")} onInfanto={()=>setAba("infanto")} />}
     </div>
   );
 }
@@ -7670,8 +9145,12 @@ function PainelSuperAdmin({ user }) {
                     style={{ marginTop: 8, width: '100%', fontSize: '0.65rem', background: u.has_exclusive_therapy_access ? 'rgba(0,198,184,.12)' : 'rgba(90,26,26,.3)', border: u.has_exclusive_therapy_access ? '1px solid #00c6b840' : '1px solid #5a1a1a', color: u.has_exclusive_therapy_access ? '#5ae0d8' : '#f87171' }}
                     onClick={async () => {
                       const novoVal = !u.has_exclusive_therapy_access;
-                      await sb.from('profiles').update({ has_exclusive_therapy_access: novoVal }).eq('id', u.id);
-                      alert((novoVal ? '✅ Módulo Exclusivo ACTIVADO' : '🔒 Módulo Exclusivo DESACTIVADO') + ' para ' + (u.nome || u.email));
+                      const { error } = await sb.from('profiles').update({ has_exclusive_therapy_access: novoVal }).eq('id', u.id);
+                      if (!error) {
+                        setUsers(prev => prev.map(x => x.id === u.id ? { ...x, has_exclusive_therapy_access: novoVal } : x));
+                      } else {
+                        alert('Erro: ' + error.message);
+                      }
                     }}
                   >
                     {u.has_exclusive_therapy_access ? '⭐ 🧠 Activo — clica para revogar' : '🔒 Exclusivo INACTIVO — clica para activar'}
@@ -8905,6 +10384,8 @@ function Clinica({ user, onUpdate }) {
     setEditandoPag(false);
     setTimeout(() => setMsg(""), 3000);
   };
+
+  const [verTemplates, setVerTemplates] = useState(!modulos.length);
 
   if (load) return (
     <div className="fade" style={{padding:40,textAlign:"center"}}>
